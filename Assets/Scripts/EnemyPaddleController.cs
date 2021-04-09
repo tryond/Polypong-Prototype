@@ -23,7 +23,7 @@ public class EnemyPaddleController : PaddleController
         foreach (var ball in ballManager.balls)
             if (ball.transform.localPosition.magnitude < nearestBallPosition.magnitude)
                 nearestBallPosition = ball.transform.localPosition;
-
+    
         return nearestBallPosition;
     }
 }

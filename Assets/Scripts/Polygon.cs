@@ -8,10 +8,12 @@ using UnityEngine;
     public float Radius { get; }
     public Vector3[] Points { get; private set; }
 
-    public Polygon(int numSides, float radius)
+    public Polygon(int numSides, float sideLength)
     {
-        this.Radius = radius;
-        Setup(numSides, radius);
+        SideLength = sideLength;
+        // Radius = sideLength / (2f * Mathf.Sin(180f / numSides));
+        Radius = sideLength / (2f * Mathf.Tan(Mathf.PI / numSides));
+        Setup(numSides, Radius);
     }
 
     private void Setup(int numSides, float radius)
@@ -39,7 +41,7 @@ using UnityEngine;
 
         // determine base vertex which to rotate around circle
         float theta = 360f / numSides;
-        SideLength = (float)(2f * radius * Math.Tan((theta * Math.PI) / 360f));
+        // SideLength = (float)(2f * radius * Math.Tan((theta * Math.PI) / 360f));
         // Vector3 baseVertex = Quaternion.Euler(0f, 0f, -theta / 2) * new Vector3(0f, -radius, 0f);
         Vector3 baseVertex = new Vector3(radius, 0f, 0f);
 
