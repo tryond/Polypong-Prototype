@@ -9,7 +9,7 @@ public class EnemyPaddleController : PaddleController
     public void FixedUpdate()
     {
         var nextPosition = DeterminePosition();
-        base.SetTargetPosition(nextPosition);
+        SetTargetPosition(nextPosition);
         base.FixedUpdate();
     }
     

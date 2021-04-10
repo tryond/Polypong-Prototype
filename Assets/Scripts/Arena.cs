@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Concurrent;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.IO.MemoryMappedFiles;
-using System.Numerics;
 using Unity.Mathematics;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Quaternion = UnityEngine.Quaternion;
@@ -136,10 +131,7 @@ public class Arena : MonoBehaviour
             {
                 var nextPos = Vector3.Lerp(startPositions[i], polygon.Points[i], transition);
                 var nextRot = Quaternion.Lerp(startRotations[i], endRotations[i], transition);
-                // players[i].SetBounds(leftPoint, rightPoint);
-                // corners[i].transform.position = leftPoint;
                 sides[i].gameObject.transform.position = nextPos;
-                // sides[i].gameObject.transform.rotation = quaternion.LookRotation(Vector3.forward, transform.position - nextPos);
                 sides[i].gameObject.transform.rotation = nextRot;
             }
             

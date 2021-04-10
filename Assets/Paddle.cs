@@ -49,7 +49,7 @@ public class Paddle : MonoBehaviour
         
         // smooth move rb to next position, updating velocity
         var nextPos = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime, maxSpeed);
-        rb.MovePosition(nextPos);
+        rb.velocity = velocity;
         
         // determine normal direction
         var horizontalVelocity = Vector3.Dot(transform.right, velocity);
