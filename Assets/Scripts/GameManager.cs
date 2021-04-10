@@ -10,16 +10,27 @@ public class GameManager : MonoBehaviour
     public bool cursorVisible = false;
     public Camera cam;
     public GameObject player;
+    public Arena arena;
+    public float smoothTime = 0.5f;
+    
+    private float _targetOrtho;
+    private float _velocity;
+
     
     public void Start()
     {
         Application.targetFrameRate = targetFrameRate;
         Cursor.visible = cursorVisible;
+        _targetOrtho = cam.orthographicSize;
     }
 
     public void LateUpdate()
     {
-        cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
+        if (player)
+            cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
+
+        _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
+        cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, _targetOrtho, ref _velocity, smoothTime);
     }
 
     public void Restart()

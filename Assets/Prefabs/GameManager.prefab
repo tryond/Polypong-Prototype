@@ -44,3 +44,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetFrameRate: 60
+  cursorVisible: 1
+  cam: {fileID: 0}
+  player: {fileID: 0}

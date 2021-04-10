@@ -6,7 +6,7 @@ using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
-public class PaddleController : MonoBehaviour
+public class Paddle : MonoBehaviour
 {
     public float maxNormal = 30f;
     public float maxReflection = 45f;
@@ -26,7 +26,7 @@ public class PaddleController : MonoBehaviour
 
     private float baseHorizontalScale;
     public float maxHealth = 100f;
-    public float health;
+    private float health;
     
     public void Start()
     {
@@ -101,7 +101,7 @@ public class PaddleController : MonoBehaviour
         transform.localScale = new Vector3( (health / maxHealth) * baseHorizontalScale, transform.localScale.y, transform.localScale.z );
         
         if (health <= 0f)
-            OnPaddleDeath.Invoke(this.transform.parent.parent.gameObject);
+            OnPaddleDeath.Invoke(transform.parent.gameObject);
     }
 
     public void Heal(float healing)

@@ -6,6 +6,7 @@ using UnityEngine;
     public (Vector3 left, Vector3 right)[] Positions { get; private set; }
     public float SideLength { get; private set; }
     public float Radius { get; }
+    public float CircumRadius { get; }
     public Vector3[] Points { get; private set; }
 
     public Polygon(int numSides, float sideLength)
@@ -13,6 +14,7 @@ using UnityEngine;
         SideLength = sideLength;
         // Radius = sideLength / (2f * Mathf.Sin(180f / numSides));
         Radius = sideLength / (2f * Mathf.Tan(Mathf.PI / numSides));
+        CircumRadius = sideLength / (2f * Mathf.Sin(Mathf.PI / numSides));
         Setup(numSides, Radius);
     }
 
@@ -25,6 +27,7 @@ using UnityEngine;
                 Points = CalculatePoints(4, radius);
                 Positions[0] = (Points[0], Points[1]);
                 Positions[1] = (Points[2], Points[3]);
+                Points = new[] {Points[0], Points[2]};
                 break;
             default:
                 Points = CalculatePoints(numSides, radius);
