@@ -15,7 +15,7 @@ public class EnemyPaddle : Paddle
     
     private Vector3 DeterminePosition()
     {
-        if (!ballManager || ballManager.balls.Length <= 0)
+        if (!ballManager || ballManager.balls.Count <= 0)
             return transform.position;
         
         Vector3 nearestBallPosition = Vector3.positiveInfinity;

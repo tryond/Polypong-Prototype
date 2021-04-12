@@ -21,8 +21,8 @@ public class Paddle : MonoBehaviour
     
     private Rigidbody2D rb;
 
-    [SerializeField] UnityFloatEvent OnPaddleHit = new UnityFloatEvent();
-    [SerializeField] UnityEvent<GameObject> OnPaddleDeath = new UnityEvent<GameObject>();
+    [SerializeField] UnityEvent<Ball> OnPaddleHit = new UnityEvent<Ball>();
+    [SerializeField] UnityEvent<Side, Ball> OnPaddleDeath = new UnityEvent<Side, Ball>();
 
     private float baseHorizontalScale;
     public float maxHealth = 100f;
@@ -48,7 +48,7 @@ public class Paddle : MonoBehaviour
         targetPosition = parent.TransformPoint(new Vector2(localTarget.x, 0f));
         
         // smooth move rb to next position, updating velocity
-        var nextPos = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime, maxSpeed);
+        Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime, maxSpeed);
         rb.velocity = velocity;
         
         // determine normal direction
@@ -66,7 +66,7 @@ public class Paddle : MonoBehaviour
             return;
 
         var ball = other.gameObject.GetComponent<Ball>();
-        OnPaddleHit.Invoke(ball.healing);
+        OnPaddleHit.Invoke(ball);
         
         ReflectBall(ball);
     }
@@ -95,18 +95,18 @@ public class Paddle : MonoBehaviour
 
     public void SetTargetPosition(Vector3 target) => targetPosition = target;
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(Ball ball)
     {
-        health = Mathf.Max(health - damage, 0f);
+        health = Mathf.Max(health - ball.damage, 0f);
         transform.localScale = new Vector3( (health / maxHealth) * baseHorizontalScale, transform.localScale.y, transform.localScale.z );
         
         if (health <= 0f)
-            OnPaddleDeath.Invoke(transform.parent.gameObject);
+            OnPaddleDeath.Invoke(transform.parent.GetComponent<Side>(), ball);
     }
 
-    public void Heal(float healing)
+    public void Heal(Ball ball)
     {
-        health = Mathf.Min(health + healing, maxHealth);
+        health = Mathf.Min(health + ball.healing, maxHealth);
         transform.localScale = new Vector3( (health / maxHealth) * baseHorizontalScale, transform.localScale.y, transform.localScale.z );
     }
     

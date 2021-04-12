@@ -47,3 +47,5 @@ MonoBehaviour:
   cursorVisible: 1
   cam: {fileID: 0}
   player: {fileID: 0}
+  arena: {fileID: 0}
+  smoothTime: 0.5

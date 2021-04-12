@@ -1,8 +1,9 @@
 using UnityEngine;
+using UnityEngine.Events;
 
 public class Side : MonoBehaviour
 {
-    [SerializeField] UnityFloatEvent OnSideHit = new UnityFloatEvent();
+    [SerializeField] UnityEvent<Ball> OnSideHit = new UnityEvent<Ball>();
 
     public void OnCollisionEnter2D(Collision2D other)
     {
@@ -10,6 +11,6 @@ public class Side : MonoBehaviour
             return;
 
         var ball = other.gameObject.GetComponent<Ball>();
-        OnSideHit.Invoke(ball.damage);
+        OnSideHit.Invoke(ball);
     }
 }

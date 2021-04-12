@@ -12,7 +12,6 @@ using UnityEngine;
     public Polygon(int numSides, float sideLength)
     {
         SideLength = sideLength;
-        // Radius = sideLength / (2f * Mathf.Sin(180f / numSides));
         Radius = sideLength / (2f * Mathf.Tan(Mathf.PI / numSides));
         CircumRadius = sideLength / (2f * Mathf.Sin(Mathf.PI / numSides));
         Setup(numSides, Radius);
