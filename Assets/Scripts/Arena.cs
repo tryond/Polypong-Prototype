@@ -94,7 +94,7 @@ public class Arena : MonoBehaviour
         // TODO: debug
         if (sides.Count == 2)
         {
-            sides = new List<Side>() {sides[0], _leftSide, sides[1], _rightSide};
+            sides = new List<Side>() {sides[0], _rightSide, sides[1], _leftSide};
             _leftSide.gameObject.SetActive(true);
             _rightSide.gameObject.SetActive(true);
         }
