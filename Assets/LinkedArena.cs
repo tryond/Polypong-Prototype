@@ -60,9 +60,11 @@ public class LinkedArena : MonoBehaviour
                 Color.green, 
                 Time.deltaTime);
             
-            Debug.DrawLine(transform.position, (_currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
-            Debug.DrawLine(transform.position, (_targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
+            Debug.DrawRay(_nodes[i].transform.position, _nodes[i].transform.up, Color.black, Time.deltaTime);
+            
         }
+        Debug.DrawLine(transform.position, (_currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
+        Debug.DrawLine(transform.position, (_targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
     }
 
     
@@ -95,6 +97,16 @@ public class LinkedArena : MonoBehaviour
         
         _transition = StartCoroutine(SplitRoutine());
     }
+    
+    /*
+     * TODO:
+     *
+     * Coroutines which are stopped should not be, and instead should be
+     * combined somehow
+     *
+     * 
+     */
+    
     
 
     public IEnumerator SplitRoutine()
