@@ -54,4 +54,23 @@ using UnityEngine;
 
         return points;
     }
+    
+    public static Vector2[] GetVertexNormals(int numSides, Vector2 baseSideNormal)
+    {
+        if (numSides <= 1)
+            return new[] { Vector2.zero };
+
+        // determine base vertex which to rotate around circle
+        float theta = 360f / numSides;
+        var baseVertex = Quaternion.Euler(0f, 0f, -theta / 2) * baseSideNormal;
+
+        // calculate points around circle
+        var normals = new Vector2[numSides];
+        for (var i = 0; i < numSides; ++i)
+            normals[i] = Quaternion.Euler(0f, 0f, theta * i) * baseVertex;
+
+        return normals;
+    }
+
+    public static float GetRadius(int numSides, float sideLength) => sideLength / (2f * Mathf.Sin(Mathf.PI / numSides));
 }

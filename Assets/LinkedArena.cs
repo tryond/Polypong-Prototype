@@ -1,132 +1,135 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using JetBrains.Annotations;
+using MiscUtil.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 
 public class LinkedArena : MonoBehaviour
 {
-    // public float sideLength = 1f;
-    public float radius = 1f;
+    public float sideLength = 1f;
     public float transitionTime = 1000f;
     public ArenaNode arenaNodePrefab;
     
     private List<ArenaNode> _nodes;
-    private Dictionary<int, float> _transitions;
-    private int _lastTransitionIndex;
-    private float _maxAngle;
+    private float _currentRadius;
+    private float _targetRadius;
+    private Vector2[] _targetNormals;
+    [CanBeNull] private Coroutine _transition;
+    
     
     private void Awake()
     {
         // TODO: remove
         Application.targetFrameRate = 60;
+
+        _currentRadius = 0f;
+        _targetRadius = 0f;
+        
+        _targetNormals = new [] { (Vector2) transform.up };
+        _transition = null;
         
         _nodes = new List<ArenaNode>();
         _nodes.Add(Instantiate(arenaNodePrefab, transform.position, Quaternion.identity));
-        _transitions = new Dictionary<int, float>();
-        _lastTransitionIndex = 0;
     }
 
+    // TODO: debug
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            // reset the current scene
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+    }
+    
     private void FixedUpdate()
     {
-        if (_transitions.Count <= 0)
-            return;
-
-        var spacing = CalculateSpacing();
-        
-        // TODO: debug
-        foreach (var spac in spacing)
-            Debug.Log(spac);
-        
-        for (int i = 0; i < _nodes.Count - 1; i++)
+        for (int i = 0; i < _nodes.Count; i++)
         {
-            var index = (_lastTransitionIndex + i) % _nodes.Count;
-
-            var currentNode = _nodes[index];
-            var nextNodeTransform = _nodes[(index + 1) % _nodes.Count].transform;
-
-            nextNodeTransform.up = Quaternion.Euler(0f, 0f, spacing[index]) * currentNode.transform.up;
-            nextNodeTransform.position = (radius * nextNodeTransform.up) + transform.position;
-        }
-
-        foreach (var key in _transitions.Keys.ToList())
-            _transitions[key] += Time.deltaTime;
-    }
-
-    private float[] CalculateSpacing()
-    {
-        var numNodes = _nodes.Count;
-        var spacing = new float[numNodes];
-        var totalTransitionSpacing = 0f;
-        var transitionKeysToRemove = new List<int>();
-        
-        // first calculate transition spacing
-        foreach(var transition in _transitions)
-        {
-            var t = transition.Value / transitionTime;
-            t = Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);  // smooth stop
+            Debug.DrawLine(_nodes[i].transform.position, _nodes[(i + 1) % _nodes.Count].transform.position, Color.red, Time.deltaTime);
             
-            var transitionSpacing = _maxAngle * t;
-
-            spacing[transition.Key] = transitionSpacing;
-            totalTransitionSpacing += transitionSpacing;
-
-            // remove transition if completed
-            if (t >= 1f)
-                transitionKeysToRemove.Add(transition.Key);
+            Debug.DrawLine(
+                _nodes[i].transform.position, 
+                (_targetRadius * _targetNormals[i]) + (Vector2) transform.position,
+                Color.green, 
+                Time.deltaTime);
+            
+            Debug.DrawLine(transform.position, (_currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
+            Debug.DrawLine(transform.position, (_targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
         }
+    }
 
-        // set non-transition spacing
-        var staticSpacing = (360f - totalTransitionSpacing) / (numNodes - _transitions.Count);
-        for (int i = 0; i < numNodes; i++)
-        {
-            if (_transitions.Keys.Contains(i))
-                continue;
+    
+    public void Split()
+    {
+        // // TODO: don't hardcode
+        // var arenaNode = _nodes[0];
+        //
+        // // find node index of node to split
+        // var nodeIndex = _nodes.IndexOf(arenaNode);
 
-            spacing[i] = staticSpacing;
-        }
+        var nodeIndex = Random.Range(0, _nodes.Count);
+        var arenaNode = _nodes[nodeIndex];
+
+        // split current node, and add to list
+        var splitNode = Instantiate(arenaNode);
+        _nodes.Insert(nodeIndex, splitNode);
         
-        // remove transition keys
-        foreach (var key in transitionKeysToRemove)
-            _transitions.Remove(key);
+        // set new targets, making this side flat
+        _targetRadius = Polygon.GetRadius(_nodes.Count, sideLength);
+        
+        var rotatedTargetNormals = Polygon.GetVertexNormals(_nodes.Count, arenaNode.transform.up);
 
-        return spacing;
+        _targetNormals = new Vector2[rotatedTargetNormals.Length];
+        for (int i = 0; i < rotatedTargetNormals.Length; i++)
+            _targetNormals[(nodeIndex + i) % _targetNormals.Length] = rotatedTargetNormals[i];
+        
+        if (_transition != null)
+            StopCoroutine(_transition);
+        
+        _transition = StartCoroutine(SplitRoutine());
     }
     
-    public void Expand(int nodeIndex)
+
+    public IEnumerator SplitRoutine()
     {
-        nodeIndex = Random.Range(0, _nodes.Count); // TODO: debug
-        // nodeIndex = 0; // TODO: debug
-        Debug.Log($"Expand {nodeIndex}");
-        
-        if (_nodes.Count <= nodeIndex)
-            return;
+        float transition = 0f;
+        float elapsedTime = 0f;
 
-        _lastTransitionIndex = nodeIndex;
-        
-        // clone current node
-        var currentNode = _nodes[nodeIndex];
-        var childNode = Instantiate(currentNode);
-        _nodes.Insert(nodeIndex + 1, childNode);
-        
-        // add transition to dictionary
-        _maxAngle = 360f / _nodes.Count;
+        Vector2[] startNormals = new Vector2[_nodes.Count];
+        for (int i = 0; i < _nodes.Count; i++)
+            startNormals[i] = _nodes[i].transform.up;
 
-        // move all transitions up one position
-        var reverseKeys = _transitions.Keys.OrderByDescending(c => c).ToArray();
-        foreach (var key in reverseKeys)
+        var startRadius = _currentRadius;
+        while (transition < 1f)
         {
-            _transitions[key + 1] = _transitions[key];
-            _transitions.Remove(key);
-        }
+            var t = elapsedTime / transitionTime;
+            // transition = Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);  // smooth stop
+            transition = Mathf.Clamp(t, 0f, 1f);
+            
+            var currentRadius = Mathf.Lerp(startRadius, _targetRadius, t);
+            
+            // TODO: this should move based on rotation and radius -- not position !!!
+            for (int i = 0; i < _nodes.Count; i++)
+            {
+                // TODO: this normal LERP is direction agnostic
+                // TODO: it should always go in the direction that makes it between its parents
+                _nodes[i].transform.up = Vector2.Lerp(startNormals[i], _targetNormals[i], t);
+
+                _nodes[i].transform.position = (currentRadius * _nodes[i].transform.up) + transform.position;
+            }
         
-        _transitions[nodeIndex] = 0f;
-    }
-    
-    // TODO
-    public void Collapse(int nodeIndex)
-    {
-        throw new NotImplementedException();
+            // wait for the end of frame and yield
+            _currentRadius = currentRadius;
+            elapsedTime += Time.deltaTime;
+            yield return new WaitForEndOfFrame();
+        }
+        _transition = null;
     }
 }
