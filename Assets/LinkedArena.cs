@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UIElements;
 using Random = UnityEngine.Random;
 
 public class LinkedArena : MonoBehaviour
@@ -22,7 +23,7 @@ public class LinkedArena : MonoBehaviour
         Application.targetFrameRate = 60;
         
         _nodes = new List<ArenaNode>();
-        _nodes.Add(Instantiate(arenaNodePrefab));
+        _nodes.Add(Instantiate(arenaNodePrefab, transform.position, Quaternion.identity));
         _transitions = new Dictionary<int, float>();
         _lastTransitionIndex = 0;
     }
@@ -32,22 +33,24 @@ public class LinkedArena : MonoBehaviour
         if (_transitions.Count <= 0)
             return;
 
-        // TODO: this is expensive...
         var spacing = CalculateSpacing();
         
-        for (int i = 0; i < _nodes.Count; i++)
+        // TODO: debug
+        foreach (var spac in spacing)
+            Debug.Log(spac);
+        
+        for (int i = 0; i < _nodes.Count - 1; i++)
         {
             var index = (_lastTransitionIndex + i) % _nodes.Count;
 
             var currentNode = _nodes[index];
-            var nextNode = _nodes[(index + 1) % _nodes.Count];
-            
-            // set next node's position and rotation
-            nextNode.transform.up = Quaternion.Euler(0f, 0f, spacing[index]) * currentNode.transform.up;
-            nextNode.transform.position = (radius * nextNode.transform.up) + transform.position;
+            var nextNodeTransform = _nodes[(index + 1) % _nodes.Count].transform;
+
+            nextNodeTransform.up = Quaternion.Euler(0f, 0f, spacing[index]) * currentNode.transform.up;
+            nextNodeTransform.position = (radius * nextNodeTransform.up) + transform.position;
         }
 
-        foreach (var key in _transitions.Keys)
+        foreach (var key in _transitions.Keys.ToList())
             _transitions[key] += Time.deltaTime;
     }
 
@@ -62,11 +65,6 @@ public class LinkedArena : MonoBehaviour
         foreach(var transition in _transitions)
         {
             var t = transition.Value / transitionTime;
-            
-            // TODO: debug
-            Debug.Log($"t = {t}");
-            
-            
             t = Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);  // smooth stop
             
             var transitionSpacing = _maxAngle * t;
@@ -76,10 +74,7 @@ public class LinkedArena : MonoBehaviour
 
             // remove transition if completed
             if (t >= 1f)
-            {
-                Debug.Log($"Remove transition {transition.Key}");
                 transitionKeysToRemove.Add(transition.Key);
-            }
         }
 
         // set non-transition spacing
@@ -102,6 +97,7 @@ public class LinkedArena : MonoBehaviour
     public void Expand(int nodeIndex)
     {
         nodeIndex = Random.Range(0, _nodes.Count); // TODO: debug
+        // nodeIndex = 0; // TODO: debug
         Debug.Log($"Expand {nodeIndex}");
         
         if (_nodes.Count <= nodeIndex)
@@ -113,9 +109,18 @@ public class LinkedArena : MonoBehaviour
         var currentNode = _nodes[nodeIndex];
         var childNode = Instantiate(currentNode);
         _nodes.Insert(nodeIndex + 1, childNode);
-
+        
         // add transition to dictionary
         _maxAngle = 360f / _nodes.Count;
+
+        // move all transitions up one position
+        var reverseKeys = _transitions.Keys.OrderByDescending(c => c).ToArray();
+        foreach (var key in reverseKeys)
+        {
+            _transitions[key + 1] = _transitions[key];
+            _transitions.Remove(key);
+        }
+        
         _transitions[nodeIndex] = 0f;
     }
     
