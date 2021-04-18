@@ -55,19 +55,19 @@ using UnityEngine;
         return points;
     }
     
-    public static Vector2[] GetVertexNormals(int numSides, Vector2 baseSideNormal)
+    public static Vector2[] GetVertexNormals(int numSides, Vector2 baseSideNormal, int rootIndex = 0, bool isSide = true)
     {
         if (numSides <= 1)
             return new[] { Vector2.zero };
 
         // determine base vertex which to rotate around circle
         float theta = 360f / numSides;
-        var baseVertex = Quaternion.Euler(0f, 0f, -theta / 2) * baseSideNormal;
+        var baseVertex = isSide ? (Vector2) (Quaternion.Euler(0f, 0f, -theta / 2) * baseSideNormal) : baseSideNormal;
 
         // calculate points around circle
         var normals = new Vector2[numSides];
         for (var i = 0; i < numSides; ++i)
-            normals[i] = Quaternion.Euler(0f, 0f, theta * i) * baseVertex;
+            normals[(rootIndex + i) % numSides] = Quaternion.Euler(0f, 0f, theta * i) * baseVertex;
 
         return normals;
     }
