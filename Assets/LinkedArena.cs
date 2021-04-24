@@ -13,23 +13,16 @@ public class LinkedArena : MonoBehaviour
     public ArenaNode arenaNodePrefab;
     
     private List<ArenaNode> _nodes;
+    private Dictionary<int, ArenaNode> _hashToNode;
     
     private float _currentRadius;
     private float _targetRadius;
-
-    private Dictionary<int, int> _collapseNodesTo;
     
     private Dictionary<int, Vector2> _nodeTargetNormals;
     [CanBeNull] private Coroutine _transition;
 
-    private Dictionary<int, ArenaNode> _hashToNode;
-
-    public Camera cam;
-
-
     // for debug purposes only
     private Vector2 lastBaseUp = Vector2.up;
-    
     
     private void Awake()
     {
@@ -46,8 +39,6 @@ public class LinkedArena : MonoBehaviour
         
         _hashToNode = new Dictionary<int, ArenaNode>();
         _hashToNode[_nodes[0].GetHashCode()] = _nodes[0];
-
-        _collapseNodesTo = new Dictionary<int, int>();
     }
 
     private void Update()
