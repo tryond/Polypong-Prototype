@@ -2,8 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
-using MiscUtil.Collections.Extensions;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
@@ -19,11 +17,19 @@ public class LinkedArena : MonoBehaviour
     private float _currentRadius;
     private float _targetRadius;
 
+    private Dictionary<int, int> _collapseNodesTo;
+    
     private Dictionary<int, Vector2> _nodeTargetNormals;
     [CanBeNull] private Coroutine _transition;
 
-    private Dictionary<int, int> _collapseNodes;
     private Dictionary<int, ArenaNode> _hashToNode;
+
+    public Camera cam;
+
+
+    // for debug purposes only
+    private Vector2 lastBaseUp = Vector2.up;
+    
     
     private void Awake()
     {
@@ -38,10 +44,10 @@ public class LinkedArena : MonoBehaviour
         _nodeTargetNormals = new Dictionary<int, Vector2>();
         _nodeTargetNormals[_nodes[0].GetHashCode()] = _nodes[0].transform.up;
         
-        _collapseNodes = new Dictionary<int, int>();
-        
         _hashToNode = new Dictionary<int, ArenaNode>();
         _hashToNode[_nodes[0].GetHashCode()] = _nodes[0];
+
+        _collapseNodesTo = new Dictionary<int, int>();
     }
 
     private void Update()
@@ -62,53 +68,105 @@ public class LinkedArena : MonoBehaviour
         {
             var nodeHash = _nodes[i].GetHashCode();
             
+            // draw arena outline
             Debug.DrawLine(_nodes[i].transform.position, _nodes[(i + 1) % _nodes.Count].transform.position, Color.red, Time.deltaTime);
             
+            // draw path to target positions
             Debug.DrawLine(
                 _nodes[i].transform.position, 
                 (_targetRadius * _nodeTargetNormals[nodeHash]) + (Vector2) transform.position,
                 Color.green, 
                 Time.deltaTime);
             
+            // draw node normals
             Debug.DrawRay(_nodes[i].transform.position, _nodes[i].transform.up, Color.black, Time.deltaTime);
         }
         
-        foreach (var entry in _collapseNodes)
-            Debug.DrawLine(_hashToNode[entry.Key].transform.position, _hashToNode[entry.Value].transform.position, Color.yellow, Time.deltaTime);
-        
-        
         Debug.DrawLine(transform.position, (_currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
         Debug.DrawLine(transform.position, (_targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
+        
+        // draw last base up
+        Debug.DrawLine(transform.position,  (2f * _targetRadius * lastBaseUp) + (Vector2) transform.position, Color.magenta, Time.deltaTime);
     }
-
-    /*
-     * TODO:
-     *
-     * Split on node selected during runtime.
-     */
 
     public void Split()
     {
         var nodeIndex = Random.Range(0, _nodes.Count);
-        var arenaNode = _nodes[nodeIndex];
-
-        // split current node, and add to list
-        var splitNode = Instantiate(arenaNode);
-        _hashToNode[splitNode.GetHashCode()] = splitNode;
-        _nodes.Insert(nodeIndex, splitNode);
+        var currentNode = _nodes[nodeIndex];
+        Debug.Log($"Splitting node {nodeIndex} of {_nodes.Count - 1}");    // TODO: remove
         
-        // set new targets, making this side flat
-        _targetRadius = Polygon.GetRadius(_nodes.Count, sideLength);
-        var targetNormals = Polygon.GetVertexNormals(_nodes.Count, arenaNode.transform.up, nodeIndex);
-        for (int i = 0; i < _nodes.Count; i++)
-            _nodeTargetNormals[_nodes[i].GetHashCode()] = targetNormals[i];
+        var nextNode = _nodes[(nodeIndex + 1) % _nodes.Count];
+        if (!nextNode.active)
+            nextNode.active = true;
+        else
+        {
+            nextNode = Instantiate(currentNode);
+            nextNode.active = true;
+            _hashToNode[nextNode.GetHashCode()] = nextNode;
+            _nodes.Insert(nodeIndex, nextNode);
+        }
+
+        SetTargets(nodeIndex, currentNode.transform.up, true);
 
         if (_transition != null)
             StopCoroutine(_transition);
-        
         _transition = StartCoroutine(MoveToTargets());
     }
 
+    public void Collapse()
+    {
+        var nodeIndex = Random.Range(0, _nodes.Count);
+        var currentNode = _nodes[nodeIndex];
+        
+        // collapse current node, and remove from list
+        var nextNodeIndex = (nodeIndex + 1) % _nodes.Count;
+        var nextNode = _nodes[nextNodeIndex];
+
+        if (!nextNode.active)
+            return;
+        nextNode.active = false;
+        
+        Debug.Log($"Collapsing node {nextNodeIndex} -> {nodeIndex}");    // TODO: remove
+
+        // if collapsing last node, adjust positioning
+        if (nextNodeIndex < nodeIndex)
+            nodeIndex--;
+        
+        SetTargets(nodeIndex, currentNode.transform.up, false);
+
+        if (_transition != null)
+            StopCoroutine(_transition);
+        _transition = StartCoroutine(MoveToTargets());
+    }
+
+    private void SetTargets(int baseIndex, Vector2 baseUp, bool outward = true)
+    {
+        var numActiveNodes = _nodes.Count(node => node.active);
+
+        Debug.Log($"Setting targets for {numActiveNodes} active nodes");
+        
+        // TODO: debug
+        lastBaseUp = baseUp;
+        
+        // TODO: the baseIndex could be 12, but there could really be like 3 inactive nodes behind it
+        // set normals
+        var targetNormals = Polygon.GetVertexNormals(numActiveNodes, baseUp, 0, outward);
+
+        var j = 0;
+        for (var i = 0; i < _nodes.Count; i++)
+        {
+            var index = (baseIndex + i) % _nodes.Count;
+            var node = _nodes[index];
+            _nodeTargetNormals[node.GetHashCode()] = targetNormals[j];
+
+            if (node.active)
+                j = (j + 1) % targetNormals.Length;
+        }
+        
+        // set radius
+        _targetRadius = Polygon.GetRadius(numActiveNodes, sideLength);
+    }
+    
     public IEnumerator MoveToTargets()
     {
         float t = 0f;
@@ -122,99 +180,45 @@ public class LinkedArena : MonoBehaviour
         while (t < 1f)
         {
             t = SmoothStop(timeElapsed);
-            var currentRadius = Mathf.Lerp(startRadius, _targetRadius, t);
             
-            // update split node positions
+            // update radius
+            var radius = Mathf.Lerp(startRadius, _targetRadius, t);
+            
+            // update node positions
             for (int i = 0; i < _nodes.Count; i++)
             {
-                /*
-                 * TODO:
-                 *
-                 * Because this directly sets the node's up vector, any concurrent
-                 * coroutine calls will overwrite each other.
-                 *
-                 * This is manageable for now, but clunky. A proper solution would
-                 * combine rotations from all concurrent coroutines and apply
-                 * those rotations on FixedUpdate.
-                 */
                 var node = _nodes[i];
                 node.transform.up = Vector2.Lerp(baseNormals[node.GetHashCode()], _nodeTargetNormals[node.GetHashCode()], t);
-                node.transform.position = (currentRadius * node.transform.up) + transform.position;
+                node.transform.position = (radius * node.transform.up) + transform.position;
+                
+                // TODO: if node collapsing and within threshold distance, remove (!)
+                // if (!node.active && Vector2.Distance(node, _nodes[(i - 1) % _nodes.Count]))
             }
-            
-            // update collapsed node positions
-            foreach (KeyValuePair<int, int> entry in _collapseNodes)
-            {
-                var fromNode = _hashToNode[entry.Key];
-                var toNode = _hashToNode[entry.Value];
 
-                fromNode.transform.up = Vector2.Lerp(baseNormals[fromNode.GetHashCode()], _nodeTargetNormals[toNode.GetHashCode()], t);
-                fromNode.transform.position = (currentRadius * fromNode.transform.up) + transform.position;
-            }
-        
             // wait for the end of frame and yield
-            _currentRadius = currentRadius;
+            _currentRadius = radius;
             timeElapsed += Time.deltaTime;
-            yield return new WaitForEndOfFrame();
+            yield return new WaitForFixedUpdate();
+            
+            // fix camera to base node
+            // if (_nodes.Count >= 2)
+            //     cam.transform.up = -(_nodes[0].transform.up + _nodes[1].transform.up).normalized;
         }
         _transition = null;
-        
-        /*
-         * TODO:
-         *
-         * This will wait until the most recent coroutine ends to destroy collapsing nodes.
-         *
-         * If several collapses/splits happen simultaneously, this leaves collapsed nodes in
-         * awkward positions.
-         *
-         * This would be addressed by stacking coroutines.
-         */
-        
+
         // clear out collapsed nodes
-        foreach (var hash in _collapseNodes.Keys.ToList())
-        {
-            Debug.Log($"destroying node {hash}");
-            
-            var nodeToDestroy = _hashToNode[hash];
-            _hashToNode.Remove(hash);
-            _collapseNodes.Remove(hash);
-            Destroy(nodeToDestroy.gameObject);
-        }
+        foreach (var node in _nodes.ToList())
+            if (!node.active)
+            {
+                _nodes.Remove(node);
+                _hashToNode.Remove(node.GetHashCode());
+                Destroy(node.gameObject);
+            }
     }
 
     private float SmoothStop(float timeElapsed)
     {
         var t = timeElapsed / transitionTime;
         return Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);
-    }
-    
-    public void Collapse()
-    {
-        var nodeIndex = Random.Range(0, _nodes.Count);
-        var arenaNode = _nodes[nodeIndex];
-
-        /*
-         * TODO:
-         *
-         * _nodes needs to keep collapseNode in list until destroyed.
-         */
-        
-        // collapse current node, and remove from list
-        var collapseNodeIndex = (nodeIndex + 1) % _nodes.Count;
-        var collapseNode = _nodes[collapseNodeIndex];
-        _nodes.RemoveAt(collapseNodeIndex);
-        
-        // set new targets, making this side flat
-        _targetRadius = Polygon.GetRadius(_nodes.Count, sideLength);
-        var targetNormals = Polygon.GetVertexNormals(_nodes.Count, arenaNode.transform.up, nodeIndex, false);
-        for (int i = 0; i < _nodes.Count; i++)
-            _nodeTargetNormals[_nodes[i].GetHashCode()] = targetNormals[i];
-
-        _collapseNodes[collapseNode.GetHashCode()] = arenaNode.GetHashCode();
-
-        if (_transition != null)
-            StopCoroutine(_transition);
-        
-        _transition = StartCoroutine(MoveToTargets());
     }
 }
