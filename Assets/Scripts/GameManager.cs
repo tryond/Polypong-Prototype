@@ -12,6 +12,7 @@ public class GameManager : MonoBehaviour
     public GameObject player;
     public Arena arena;
     public float smoothTime = 0.5f;
+    public float sideBuffer = 0.5f;
     
     private float _targetOrtho;
     private float _velocity;
@@ -30,6 +31,7 @@ public class GameManager : MonoBehaviour
             cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
 
         // _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
+        _targetOrtho = (arena.Radius / cam.aspect) + (sideBuffer * 2f);
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, _targetOrtho, ref _velocity, smoothTime);
     }
 

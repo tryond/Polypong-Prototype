@@ -37,9 +37,10 @@ using UnityEngine.Events;
         collider.offset = new Vector2(0f, colliderBaseOffsetY + (1.5f * paddleHeight));
     }
 
-    public void SetColor(Color color)
+    public void SetColors(Color startColor, Color endColor)
     {
-        line.Color = color;
+        line.ColorStart = startColor;
+        line.ColorEnd = endColor;
     }
     
     public void SetLength(float length)

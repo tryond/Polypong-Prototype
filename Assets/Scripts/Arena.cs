@@ -17,32 +17,27 @@ public class Arena : DynamicPolygon
 
     protected override void Awake()
     {
-        // setup vertices
-        base.Awake();
-        
-        // TODO: should I override move to positions ??
-        
-        // set color increments
-        var hueInc = 1f / numSides;
-        var startHue = hueInc / 2f;
-        
-        // setup sides
         sideList = new List<Side>();
+        base.Awake();
+    }
+
+    protected void Start()
+    {
         for (int i = 0; i < vertexList.Count; i++)
         {
             var side = Instantiate(sidePrefab);
-            side.SetColor(Color.HSVToRGB(startHue + (hueInc * i), 0.6f, 1f));
             sideList.Add(side);
         }
         UpdateSidePositions();
-        
+       
         // setup paddles
         // var player = Instantiate(playerPaddlePrefab);
         // sides[0].SetPaddle(player);
         // for (int i = 1; i < sides.Count; i++)
-            // sides[i].SetPaddle(Instantiate(enemyPaddlePrefab));
+        // sides[i].SetPaddle(Instantiate(enemyPaddlePrefab));
+        // setup sides
     }
-
+    
     private void UpdateSidePositions()
     {
         // if (sideList.Count != vertexList.Count)
@@ -61,7 +56,12 @@ public class Arena : DynamicPolygon
             
             sideTransform.position = leftPos + (rightPos - leftPos) / 2f;
             sideTransform.up = (transform.position - sideTransform.position).normalized;
+            
             side.SetLength(Vector3.Distance(leftPos, rightPos));
+
+            var startColor = GetColorFromNormal(leftVertex.transform.up);
+            var endColor = GetColorFromNormal(rightVertex.transform.up);
+            side.SetColors(startColor, endColor);
         }
     }
     
@@ -71,8 +71,8 @@ public class Arena : DynamicPolygon
         if (!vertexAdded)
             return false;
         
-        var side = Instantiate(sidePrefab);
-        side.SetColor(Color.green);    // TODO: not sure what color to set this to...
+        // instantiate off-camera
+        var side = Instantiate(sidePrefab, new Vector3(1000f, 1000f, 0f), Quaternion.identity);
         sideList.Insert(vertexIndex, side);
         
         return true;
@@ -98,5 +98,14 @@ public class Arena : DynamicPolygon
             Destroy(side.gameObject);
         }
         base.RemoveCollapsedVertices();
+    }
+
+    private Color GetColorFromNormal(Vector3 normal)
+    {
+        var angle = Vector3.SignedAngle(Vector3.right, normal, Vector3.forward);
+        var percentage = angle / 360f;
+        var shiftedHue = (percentage * 0.75f) + 0.25f; 
+        
+        return Color.HSVToRGB(shiftedHue, 0.6f, 1f);
     }
 }
