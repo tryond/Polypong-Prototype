@@ -29,7 +29,7 @@ public class GameManager : MonoBehaviour
         if (player)
             cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
 
-        _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
+        // _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, _targetOrtho, ref _velocity, smoothTime);
     }
 

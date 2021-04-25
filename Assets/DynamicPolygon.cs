@@ -1,232 +1,244 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Random = UnityEngine.Random;
 
 public class DynamicPolygon : MonoBehaviour
 {
-    public float sideLength = 1f;
-    public float transitionTime = 1f;
-    public Vertex arenaNodePrefab;
+    [SerializeField] private int numSides = 5;
+    [SerializeField] private float sideLength = 1f;
+    [SerializeField] private float transitionTime = 1f;
+    [SerializeField] private GameObject vertexPrefab;
     
-    private List<Vertex> _nodes;
-    private Dictionary<int, Vertex> _hashToNode;
+    private List<GameObject> verticesList;
+    private Dictionary<int, GameObject> verticesMap;
+    private HashSet<int> collapseVertices;
+    private Dictionary<int, Vector2> targetNormals;
     
-    private float _currentRadius;
-    private float _targetRadius;
+    private float currentRadius = 0f;
+    private float targetRadius = 0f;
     
-    private Dictionary<int, Vector2> _nodeTargetNormals;
-    [CanBeNull] private Coroutine _transition;
+    [CanBeNull] private Coroutine currentTransition;
 
     // for debug purposes only
     private Vector2 lastBaseUp = Vector2.up;
     
-    public Vector2[] GetSidePositions()
+    private void OnDrawGizmos()
     {
-        var sides = new Vector2[_nodes.Count];
-        for (int i = 0; i < sides.Length; i++)
-            sides[i] = Vector3.Lerp(
-                _nodes[i].transform.position, _nodes[(i + 1) % sides.Length].transform.position, 0.5f );
-
-        return sides;
-    }
-
-    public bool CollapseSide(int sideIndex)
-    {
-        if (sideIndex >= _nodes.Count)
-            return false;
-        
-        Collapse(sideIndex);
-        return true;
+        Gizmos.color = Color.red;
+        var polygon = new Polygon(numSides, sideLength);
+        foreach ((Vector3 from, Vector3 to) in polygon.Positions)
+            Gizmos.DrawLine(from, to);
     }
     
     private void Awake()
     {
-        _currentRadius = 0f;
-        _targetRadius = 0f;
+        // create vertex collections
+        verticesList = new List<GameObject>();
+        verticesMap = new Dictionary<int, GameObject>();
+        collapseVertices = new HashSet<int>();
+        targetNormals = new Dictionary<int, Vector2>();
         
-        _transition = null;
+        // add to vertex list and map
+        for (int i = 0; i < numSides; i++)
+        {
+            var vertex = Instantiate(vertexPrefab);
+            vertex.SetActive(true);
+            
+            verticesList.Add(vertex);
+            verticesMap[vertex.GetHashCode()] = vertex;
+        }
         
-        _nodes = new List<Vertex>();
-        _nodes.Add(Instantiate(arenaNodePrefab, transform.position, Quaternion.identity));
+        // set targets
+        SetTargets(0, transform.up, false);
         
-        _nodeTargetNormals = new Dictionary<int, Vector2>();
-        _nodeTargetNormals[_nodes[0].GetHashCode()] = _nodes[0].transform.up;
-        
-        _hashToNode = new Dictionary<int, Vertex>();
-        _hashToNode[_nodes[0].GetHashCode()] = _nodes[0];
+        // move to targets (instantly)
+        StartCoroutine(MoveToTargets(0f));
+    }
+    
+    public DynamicPolygon(float sideLength, int numSides, float transitionTime, GameObject vertexPrefab)
+    {
+        this.numSides = numSides;
+        this.sideLength = sideLength;
+        this.transitionTime = transitionTime;
+        this.vertexPrefab = vertexPrefab;
     }
 
+    // TODO: debug
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.R))
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         
         else if (Input.GetKeyDown(KeyCode.S))
-            Split(Random.Range(0, _nodes.Count));
+            Split(Random.Range(0, verticesList.Count));
         
         else if (Input.GetKeyDown(KeyCode.C))
-            Collapse(Random.Range(0, _nodes.Count));
+        {
+            var activeVertices = verticesList.FindAll(
+                v => !collapseVertices.Contains(v.GetHashCode()));
+
+            if (activeVertices.Count <= 1)
+                return;
+            
+            var randomActiveVertex = activeVertices[Random.Range(0, activeVertices.Count)];
+            Collapse(verticesList.IndexOf(randomActiveVertex));
+        }
     }
     
+    // TODO: debug
     private void FixedUpdate()
     {
-        for (int i = 0; i < _nodes.Count; i++)
+        for (int i = 0; i < verticesList.Count; i++)
         {
-            var nodeHash = _nodes[i].GetHashCode();
+            var nodeHash = verticesList[i].GetHashCode();
             
             // draw arena outline
-            Debug.DrawLine(_nodes[i].transform.position, _nodes[(i + 1) % _nodes.Count].transform.position, Color.red, Time.deltaTime);
+            Debug.DrawLine(verticesList[i].transform.position, verticesList[(i + 1) % verticesList.Count].transform.position, Color.red, Time.deltaTime);
             
             // draw path to target positions
             Debug.DrawLine(
-                _nodes[i].transform.position, 
-                (_targetRadius * _nodeTargetNormals[nodeHash]) + (Vector2) transform.position,
+                verticesList[i].transform.position, 
+                (targetRadius * targetNormals[nodeHash]) + (Vector2) transform.position,
                 Color.green, 
                 Time.deltaTime);
             
             // draw node normals
-            Debug.DrawRay(_nodes[i].transform.position, _nodes[i].transform.up, Color.black, Time.deltaTime);
+            Debug.DrawRay(verticesList[i].transform.position, verticesList[i].transform.up, Color.black, Time.deltaTime);
         }
         
-        Debug.DrawLine(transform.position, (_currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
-        Debug.DrawLine(transform.position, (_targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
+        Debug.DrawLine(transform.position, (currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
+        Debug.DrawLine(transform.position, (targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
         
         // draw last base up
-        Debug.DrawLine(transform.position,  (2f * _targetRadius * lastBaseUp) + (Vector2) transform.position, Color.magenta, Time.deltaTime);
+        Debug.DrawLine(transform.position,  (2f * targetRadius * lastBaseUp) + (Vector2) transform.position, Color.magenta, Time.deltaTime);
     }
 
-    public void Split(int nodeIndex)
+    public void Split(int vertexIndex)
     {
-        // var nodeIndex = Random.Range(0, _nodes.Count);
-        var currentNode = _nodes[nodeIndex];
-        Debug.Log($"Splitting node {nodeIndex} of {_nodes.Count - 1}");    // TODO: remove
+        var vertex = verticesList[vertexIndex];
+        var nextVertex = verticesList[(vertexIndex + 1) % verticesList.Count];
+
+        // if already collapsing, stop collapse
+        if (collapseVertices.Contains(nextVertex.GetHashCode()))
+            collapseVertices.Remove(nextVertex.GetHashCode());
         
-        var nextNode = _nodes[(nodeIndex + 1) % _nodes.Count];
-        if (!nextNode.active)
-            nextNode.active = true;
+        // else, clone current vertex
         else
         {
-            nextNode = Instantiate(currentNode);
-            nextNode.active = true;
-            _hashToNode[nextNode.GetHashCode()] = nextNode;
-            _nodes.Insert(nodeIndex, nextNode);
+            nextVertex = Instantiate(vertex);
+            verticesMap[nextVertex.GetHashCode()] = nextVertex;
+            verticesList.Insert(vertexIndex, nextVertex);
         }
 
-        SetTargets(nodeIndex, currentNode.transform.up, true);
+        SetTargets(vertexIndex, vertex.transform.up);
 
-        if (_transition != null)
-            StopCoroutine(_transition);
-        _transition = StartCoroutine(MoveToTargets());
+        if (currentTransition != null)
+            StopCoroutine(currentTransition);
+        currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
 
-    public void Collapse(int nodeIndex)
+    public void Collapse(int vertexIndex)
     {
-        var currentNode = _nodes[nodeIndex];
-        
-        // collapse current node, and remove from list
-        var nextNodeIndex = (nodeIndex + 1) % _nodes.Count;
-        var nextNode = _nodes[nextNodeIndex];
-
-        if (!nextNode.active)
+        if (verticesList.Count <= 1)
             return;
-        nextNode.active = false;
         
-        Debug.Log($"Collapsing node {nextNodeIndex} -> {nodeIndex}");    // TODO: remove
+        var vertex = verticesList[vertexIndex];
+        var nextVertexIndex = (vertexIndex + 1) % verticesList.Count;
+        var nextVertex = verticesList[nextVertexIndex];
 
+        // if already collapsing, return
+        if (collapseVertices.Contains(nextVertex.GetHashCode()))
+            return;
+
+        collapseVertices.Add(nextVertex.GetHashCode());
+        
         // if collapsing last node, adjust positioning
-        if (nextNodeIndex < nodeIndex)
-            nodeIndex--;
+        if (nextVertexIndex < vertexIndex)
+            vertexIndex--;
         
-        SetTargets(nodeIndex, currentNode.transform.up, false);
+        SetTargets(vertexIndex, vertex.transform.up, false);
 
-        if (_transition != null)
-            StopCoroutine(_transition);
-        _transition = StartCoroutine(MoveToTargets());
+        if (currentTransition != null)
+            StopCoroutine(currentTransition);
+        currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
-
+    
     private void SetTargets(int baseIndex, Vector2 baseUp, bool outward = true)
     {
-        var numActiveNodes = _nodes.Count(node => node.active);
-
-        Debug.Log($"Setting targets for {numActiveNodes} active nodes");
-        
-        // TODO: debug
-        lastBaseUp = baseUp;
-        
-        // TODO: the baseIndex could be 12, but there could really be like 3 inactive nodes behind it
-        // set normals
-        var targetNormals = Polygon.GetVertexNormals(numActiveNodes, baseUp, 0, outward);
+        var numActiveVertices = verticesList.Count - collapseVertices.Count;
+        var normals = Polygon.GetVertexNormals(numActiveVertices, baseUp, 0, outward);
 
         var j = 0;
-        for (var i = 0; i < _nodes.Count; i++)
+        for (var i = 0; i < verticesList.Count; i++)
         {
-            var index = (baseIndex + i) % _nodes.Count;
-            var node = _nodes[index];
-            _nodeTargetNormals[node.GetHashCode()] = targetNormals[j];
+            var index = (baseIndex + i) % verticesList.Count;
+            var vertex = verticesList[index];
+            targetNormals[vertex.GetHashCode()] = normals[j];
 
-            if (node.active)
-                j = (j + 1) % targetNormals.Length;
+            // only move to the next target if current vertex is not collapsing
+            if (!collapseVertices.Contains(vertex.GetHashCode()))
+                j = (j + 1) % normals.Length;
         }
         
         // set radius
-        _targetRadius = Polygon.GetRadius(numActiveNodes, sideLength);
+        targetRadius = Polygon.GetRadius(numActiveVertices, sideLength);
     }
     
-    public IEnumerator MoveToTargets()
+    public IEnumerator MoveToTargets(float overTime)
     {
-        float t = 0f;
-        float timeElapsed = 0f;
-
-        var baseNormals = new Dictionary<int, Vector2>();
-        foreach (KeyValuePair<int, Vertex> entry in _hashToNode)
-            baseNormals[entry.Key] = entry.Value.transform.up;
+        var t = 0f;
+        var elapsedTime = 0f;
+        var startRadius = currentRadius;
         
-        var startRadius = _currentRadius;
+        // set vertex starting normals
+        var baseNormals = new Dictionary<int, Vector2>();
+        foreach (KeyValuePair<int, GameObject> hashAndVertex in verticesMap)
+            baseNormals[hashAndVertex.Key] = hashAndVertex.Value.transform.up;
+        
         while (t < 1f)
         {
-            t = SmoothStop(timeElapsed);
+            t = SmoothStop(elapsedTime, overTime);
+            currentRadius = Mathf.Lerp(startRadius, targetRadius, t);
             
-            // update radius
-            var radius = Mathf.Lerp(startRadius, _targetRadius, t);
-            
-            // update node positions
-            for (int i = 0; i < _nodes.Count; i++)
+            // update vertex normals
+            for (int i = 0; i < verticesList.Count; i++)
             {
-                var node = _nodes[i];
-                node.transform.up = Vector2.Lerp(baseNormals[node.GetHashCode()], _nodeTargetNormals[node.GetHashCode()], t);
-                node.transform.position = (radius * node.transform.up) + transform.position;
-                
-                // TODO: if node collapsing and within threshold distance, remove (!)
-                // if (!node.active && Vector2.Distance(node, _nodes[(i - 1) % _nodes.Count]))
+                var vertex = verticesList[i];
+                vertex.transform.up = Vector2.Lerp(baseNormals[vertex.GetHashCode()], targetNormals[vertex.GetHashCode()], t);
+                vertex.transform.position = (currentRadius * vertex.transform.up) + transform.position;
             }
 
-            // wait for the end of frame and yield
-            _currentRadius = radius;
-            timeElapsed += Time.deltaTime;
+            elapsedTime += Time.deltaTime;
             yield return new WaitForFixedUpdate();
-            
-            // fix camera to base node
-            // if (_nodes.Count >= 2)
-            //     cam.transform.up = -(_nodes[0].transform.up + _nodes[1].transform.up).normalized;
         }
-        _transition = null;
 
-        // clear out collapsed nodes
-        foreach (var node in _nodes.ToList())
-            if (!node.active)
-            {
-                _nodes.Remove(node);
-                _hashToNode.Remove(node.GetHashCode());
-                Destroy(node.gameObject);
-            }
+        // destroy collapsed vertices
+        foreach (var vertexHash in collapseVertices.ToList())
+        {
+            var vertex = verticesMap[vertexHash];
+
+            verticesList.Remove(vertex);
+            verticesMap.Remove(vertexHash);
+            collapseVertices.Remove(vertexHash);
+            
+            Destroy(vertex.gameObject);
+        }
+
+        // reset transition
+        currentTransition = null;
     }
 
-    private float SmoothStop(float timeElapsed)
+    private static float SmoothStop(float elapsedTime, float totalTime)
     {
-        var t = timeElapsed / transitionTime;
+        if (totalTime <= 0f)
+            return 1f;
+        
+        var t = elapsedTime / totalTime;
         return Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);
     }
 }
