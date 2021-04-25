@@ -1,190 +1,57 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Events;
 using Quaternion = UnityEngine.Quaternion;
 using Vector3 = UnityEngine.Vector3;
 
-[System.Serializable]
-public class UnityIntEvent : UnityEvent<int>
+public class Arena : DynamicPolygon
 {
-}
-
-public class Arena : MonoBehaviour
-{
-    [SerializeField] private Vertex vertexPrefab;
     [SerializeField] private Side sidePrefab;
     [SerializeField] private Paddle playerPaddlePrefab;
     [SerializeField] private Paddle enemyPaddlePrefab;
-    
-    [SerializeField] private int numPlayers;
-    [SerializeField] private float sideLength;
-    [SerializeField] private float transitionSpeed;
 
-    private DynamicPolygon dp;
-    public UnityEvent<int> OnNumPlayersChanged = new UnityEvent<int>();
+    private List<Side> sides;
     
-    private void OnDrawGizmos()
+    public UnityEvent<int> OnNumSidesChanged = new UnityEvent<int>();
+
+    protected override void Awake()
     {
-        Gizmos.color = Color.red;
-        var gizmoPolygon = new Polygon(numPlayers, sideLength);
-        foreach ((Vector3 from, Vector3 to) in gizmoPolygon.Positions)
+        // setup vertices
+        base.Awake();
+        
+        // setup sides
+        sides = new List<Side>();
+        for (int i = 0; i < verticesList.Count; i++)
         {
-            Gizmos.DrawLine(from, to);
+            var side = Instantiate(sidePrefab);
+            // side.SetBounds(verticesList[i], verticesList[(i + 1) % verticesList.Count]);
+            sides.Add(side);
         }
+        
+        // setup paddles
+        // var player = Instantiate(playerPaddlePrefab);
+        // sides[0].SetPaddle(player);
+        // for (int i = 1; i < sides.Count; i++)
+            // sides[i].SetPaddle(Instantiate(enemyPaddlePrefab));
     }
 
-    // private void Start()
-    // {
-    //     // this should be references to the actual vertices created by the dynamic polygon
-    //     var vertices = new DynamicPolygon();
-    //
-    //     // create polygon from which to find sector positions
-    //     if (numPlayers == 2)
-    //         polygon = new Polygon(4, sideLength);
-    //     else
-    //         polygon = new Polygon(numPlayers, sideLength);
-    //     
-    //     // create goals
-    //     sides = new List<Side>();
-    //     
-    //     // add player (if defined) and enemy goals
-    //     sides.Add(mainSide.gameObject.activeSelf ? mainSide : Instantiate(enemySidePrefab));
-    //     for (int i = 1; i < numPlayers; i++)
-    //     {
-    //         var side = Instantiate(enemySidePrefab);
-    //         side.gameObject.SetActive(true);
-    //         sides.Add(side);
-    //     }
-    //
-    //     // set colors
-    //     // var hueInc = 1f / players.Count;
-    //     // var startHue = hueInc / 2f;
-    //     // for (var i = 0; i < numPlayers; i++)
-    //     //     players[i].SetColor(Color.HSVToRGB(startHue + (hueInc * i), 0.6f, 1f)); 
-    //
-    //     // set goal positions
-    //     SetGoalPositions(overTime: 0f);
-    // }
-    //
-    // private void SetGoalPositions(float overTime = 0f)
-    // {
-    //     if (currentGoalTransition != null)
-    //         StopCoroutine(currentGoalTransition);
-    //
-    //     currentGoalTransition = StartCoroutine(TransitionPlayers(overTime));
-    // }
-    //
-    // private IEnumerator TransitionPlayers(float overTime = 0f)
-    // {
-    //     // TODO: debug
-    //     if (sides.Count == 2)
-    //     {
-    //         sides = new List<Side>() {sides[0], _rightSide, sides[1], _leftSide};
-    //         _leftSide.gameObject.SetActive(true);
-    //         _rightSide.gameObject.SetActive(true);
-    //     }
-    //
-    //     var startPositions = new Vector3[sides.Count];
-    //     var endPositions = new Vector3[sides.Count];
-    //     
-    //     var startRotations = new Quaternion[sides.Count];
-    //     var endRotations = new Quaternion[sides.Count];
-    //     
-    //     for (int i = 0; i < sides.Count; i++)
-    //     {
-    //         startPositions[i] = sides[i].gameObject.transform.position;
-    //         startRotations[i] = sides[i].gameObject.transform.rotation;
-    //     }
-    //     
-    //     // TODO: debug -- align polygon
-    //     var closestIndex = -1;
-    //     var minDistance = Mathf.Infinity;
-    //     for (int i = 0; i < polygon.Points.Length; i++)
-    //     {
-    //         var point = polygon.Points[i];
-    //         if (Vector3.Distance(startPositions[0], point) < minDistance)
-    //             closestIndex = i;
-    //     }
-    //
-    //     var index = 0;
-    //     for (int i = closestIndex; i < polygon.Points.Length; i++)
-    //         endPositions[index++] = polygon.Points[i];
-    //
-    //     for (int i = 0; i < closestIndex; i++)
-    //         endPositions[index++] = polygon.Points[i];
-    //     
-    //     for (int i = 0; i < endPositions.Length; i++)
-    //         endRotations[i] = quaternion.LookRotation(Vector3.forward, transform.position - endPositions[i]);
-    //     
-    //     float transition = 0f;
-    //     float elapsedTime = 0f;
-    //     
-    //     while (transition < 1f)
-    //     {
-    //         var t = overTime > 0f ? elapsedTime / overTime : 1f;
-    //         transition = Mathf.Clamp(1 - (1 - t) * (1 - t) * (1 - t), 0f, 1f);  // smooth stop
-    //         
-    //         // determine new goal positions first
-    //         for (int i = 0; i < sides.Count; ++i)
-    //         {
-    //             var nextPos = Vector3.Lerp(startPositions[i], endPositions[i], transition);
-    //             var nextRot = Quaternion.Lerp(startRotations[i], endRotations[i], transition);
-    //             sides[i].gameObject.transform.position = nextPos;
-    //             sides[i].gameObject.transform.rotation = nextRot;
-    //         }
-    //
-    //         // wait for the end of frame and yield
-    //         elapsedTime += Time.deltaTime;
-    //         yield return new WaitForEndOfFrame();
-    //     }
-    //     currentGoalTransition = null;
-    // }
-    //
-    // // public void GoalScored(GameObject side, Ball ball)
-    // public void GoalScored(Side side, Ball ball)
-    // {
-    //     Debug.Log("Goal Scored!");
-    //     
-    //     
-    //     // stop current transition
-    //     if (currentGoalTransition != null)
-    //         StopCoroutine(currentGoalTransition);
-    //
-    //     // destroy the ball
-    //     // ballManager.Remove(ball.gameObject);
-    //
-    //     // destroy the goal
-    //     if (sides.Remove(side))
-    //     {
-    //         Destroy(side.gameObject);
-    //         OnNumPlayersChanged.Invoke(sides.Count);
-    //     }
-    //     else
-    //     {
-    //         Debug.Log("Side not in sides!");
-    //     }
-    //
-    //     // transition sectors
-    //     switch (sides.Count)
-    //     {
-    //         case 1:
-    //             return;
-    //         case 2:
-    //             polygon = new Polygon(4, sideLength);
-    //             break;
-    //         default:
-    //             polygon = new Polygon(sides.Count, sideLength);
-    //             break;
-    //     }
-    //     
-    //     var time = Mathf.Lerp(startTransitionTime, endTransitionTime, 1.0f - ((float) sides.Count / numPlayers));
-    //     SetGoalPositions(overTime: time);
-    // }
-    //
-    // public float GetDiameter()
-    // {
-    //     return polygon.CircumRadius * 2f;
-    // }
+    protected override void RemoveCollapsedVertices()
+    {
+        // destroy collapsed sides
+        foreach (var vertexHash in collapseVertices.ToList())
+        {
+            var vertex = verticesMap[vertexHash];
+            var sideIndex = (verticesList.IndexOf(vertex) - 1) % verticesList.Count;
+
+            var side = sides[sideIndex];
+            sides.RemoveAt(sideIndex);
+            
+            Destroy(side.gameObject);
+        }
+        base.RemoveCollapsedVertices();
+    }
 }

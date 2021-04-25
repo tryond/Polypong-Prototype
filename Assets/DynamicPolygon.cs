@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,25 +8,22 @@ using Random = UnityEngine.Random;
 
 public class DynamicPolygon : MonoBehaviour
 {
-    [SerializeField] private int numSides = 5;
-    [SerializeField] private float sideLength = 1f;
-    [SerializeField] private float transitionTime = 1f;
-    [SerializeField] private GameObject vertexPrefab;
+    [SerializeField] protected int numSides = 5;
+    [SerializeField] protected float sideLength = 1f;
+    [SerializeField] protected float transitionTime = 1f;
+    [SerializeField] protected GameObject vertexPrefab;
     
-    private List<GameObject> verticesList;
-    private Dictionary<int, GameObject> verticesMap;
-    private HashSet<int> collapseVertices;
-    private Dictionary<int, Vector2> targetNormals;
+    protected List<GameObject> verticesList;
+    protected Dictionary<int, GameObject> verticesMap;
+    protected HashSet<int> collapseVertices;
+    protected Dictionary<int, Vector2> targetNormals;
     
-    private float currentRadius = 0f;
-    private float targetRadius = 0f;
+    public float Radius { get; private set; }
+    protected float targetRadius = 0f;
     
-    [CanBeNull] private Coroutine currentTransition;
-
-    // for debug purposes only
-    private Vector2 lastBaseUp = Vector2.up;
+    [CanBeNull] protected Coroutine currentTransition;
     
-    private void OnDrawGizmos()
+    protected void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
         var polygon = new Polygon(numSides, sideLength);
@@ -35,7 +31,7 @@ public class DynamicPolygon : MonoBehaviour
             Gizmos.DrawLine(from, to);
     }
     
-    private void Awake()
+    protected virtual void Awake()
     {
         // create vertex collections
         verticesList = new List<GameObject>();
@@ -59,17 +55,9 @@ public class DynamicPolygon : MonoBehaviour
         // move to targets (instantly)
         StartCoroutine(MoveToTargets(0f));
     }
-    
-    public DynamicPolygon(float sideLength, int numSides, float transitionTime, GameObject vertexPrefab)
-    {
-        this.numSides = numSides;
-        this.sideLength = sideLength;
-        this.transitionTime = transitionTime;
-        this.vertexPrefab = vertexPrefab;
-    }
 
     // TODO: debug
-    private void Update()
+    protected void Update()
     {
         if (Input.GetKeyDown(KeyCode.R))
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
@@ -91,34 +79,55 @@ public class DynamicPolygon : MonoBehaviour
     }
     
     // TODO: debug
-    private void FixedUpdate()
+    protected void FixedUpdate()
     {
+        var outlineColor = Color.grey;
+        var targetPositionColor = Color.yellow;
+        var normalColor = Color.black;
+        var currentRadiusColor = Color.green;
+        var targetRadiusColor = Color.red;
+        
         for (int i = 0; i < verticesList.Count; i++)
         {
             var nodeHash = verticesList[i].GetHashCode();
             
             // draw arena outline
-            Debug.DrawLine(verticesList[i].transform.position, verticesList[(i + 1) % verticesList.Count].transform.position, Color.red, Time.deltaTime);
+            Debug.DrawLine(
+                verticesList[i].transform.position,
+                verticesList[(i + 1) % verticesList.Count].transform.position,
+                outlineColor,
+                Time.deltaTime);
             
             // draw path to target positions
             Debug.DrawLine(
                 verticesList[i].transform.position, 
                 (targetRadius * targetNormals[nodeHash]) + (Vector2) transform.position,
-                Color.green, 
+                targetPositionColor, 
                 Time.deltaTime);
             
             // draw node normals
-            Debug.DrawRay(verticesList[i].transform.position, verticesList[i].transform.up, Color.black, Time.deltaTime);
+            Debug.DrawRay(
+                verticesList[i].transform.position,
+                verticesList[i].transform.up,
+                normalColor,
+                Time.deltaTime);
         }
         
-        Debug.DrawLine(transform.position, (currentRadius * transform.up) + transform.position, Color.blue, Time.deltaTime);
-        Debug.DrawLine(transform.position, (targetRadius * transform.right) + transform.position, Color.yellow, Time.deltaTime);
+        // draw current radius
+        Debug.DrawLine(
+            transform.position,
+            (Radius * transform.up) + transform.position,
+            currentRadiusColor,
+            Time.deltaTime);
         
-        // draw last base up
-        Debug.DrawLine(transform.position,  (2f * targetRadius * lastBaseUp) + (Vector2) transform.position, Color.magenta, Time.deltaTime);
+        // draw target radius
+        Debug.DrawLine(transform.position,
+            (targetRadius * transform.right) + transform.position,
+            targetRadiusColor,
+            Time.deltaTime);
     }
 
-    public void Split(int vertexIndex)
+    protected void Split(int vertexIndex)
     {
         var vertex = verticesList[vertexIndex];
         var nextVertex = verticesList[(vertexIndex + 1) % verticesList.Count];
@@ -142,7 +151,7 @@ public class DynamicPolygon : MonoBehaviour
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
 
-    public void Collapse(int vertexIndex)
+    protected void Collapse(int vertexIndex)
     {
         if (verticesList.Count <= 1)
             return;
@@ -168,7 +177,7 @@ public class DynamicPolygon : MonoBehaviour
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
     
-    private void SetTargets(int baseIndex, Vector2 baseUp, bool outward = true)
+    protected void SetTargets(int baseIndex, Vector2 baseUp, bool outward = true)
     {
         var numActiveVertices = verticesList.Count - collapseVertices.Count;
         var normals = Polygon.GetVertexNormals(numActiveVertices, baseUp, 0, outward);
@@ -189,11 +198,11 @@ public class DynamicPolygon : MonoBehaviour
         targetRadius = Polygon.GetRadius(numActiveVertices, sideLength);
     }
     
-    public IEnumerator MoveToTargets(float overTime)
+    protected IEnumerator MoveToTargets(float overTime)
     {
         var t = 0f;
         var elapsedTime = 0f;
-        var startRadius = currentRadius;
+        var startRadius = Radius;
         
         // set vertex starting normals
         var baseNormals = new Dictionary<int, Vector2>();
@@ -203,20 +212,27 @@ public class DynamicPolygon : MonoBehaviour
         while (t < 1f)
         {
             t = SmoothStop(elapsedTime, overTime);
-            currentRadius = Mathf.Lerp(startRadius, targetRadius, t);
+            Radius = Mathf.Lerp(startRadius, targetRadius, t);
             
             // update vertex normals
             for (int i = 0; i < verticesList.Count; i++)
             {
                 var vertex = verticesList[i];
                 vertex.transform.up = Vector2.Lerp(baseNormals[vertex.GetHashCode()], targetNormals[vertex.GetHashCode()], t);
-                vertex.transform.position = (currentRadius * vertex.transform.up) + transform.position;
+                vertex.transform.position = (Radius * vertex.transform.up) + transform.position;
             }
 
             elapsedTime += Time.deltaTime;
             yield return new WaitForFixedUpdate();
         }
 
+        // remove collapsed vertices and reset transition
+        RemoveCollapsedVertices();
+        currentTransition = null;
+    }
+
+    protected virtual void RemoveCollapsedVertices()
+    {
         // destroy collapsed vertices
         foreach (var vertexHash in collapseVertices.ToList())
         {
@@ -228,12 +244,9 @@ public class DynamicPolygon : MonoBehaviour
             
             Destroy(vertex.gameObject);
         }
-
-        // reset transition
-        currentTransition = null;
     }
 
-    private static float SmoothStop(float elapsedTime, float totalTime)
+    protected static float SmoothStop(float elapsedTime, float totalTime)
     {
         if (totalTime <= 0f)
             return 1f;
