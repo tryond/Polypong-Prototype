@@ -4,16 +4,15 @@ using System.Linq;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Random = UnityEngine.Random;
 
-public class LinkedArena : MonoBehaviour
+public class DynamicPolygon : MonoBehaviour
 {
     public float sideLength = 1f;
     public float transitionTime = 1f;
-    public ArenaNode arenaNodePrefab;
+    public Vertex arenaNodePrefab;
     
-    private List<ArenaNode> _nodes;
-    private Dictionary<int, ArenaNode> _hashToNode;
+    private List<Vertex> _nodes;
+    private Dictionary<int, Vertex> _hashToNode;
     
     private float _currentRadius;
     private float _targetRadius;
@@ -50,13 +49,13 @@ public class LinkedArena : MonoBehaviour
         
         _transition = null;
         
-        _nodes = new List<ArenaNode>();
+        _nodes = new List<Vertex>();
         _nodes.Add(Instantiate(arenaNodePrefab, transform.position, Quaternion.identity));
         
         _nodeTargetNormals = new Dictionary<int, Vector2>();
         _nodeTargetNormals[_nodes[0].GetHashCode()] = _nodes[0].transform.up;
         
-        _hashToNode = new Dictionary<int, ArenaNode>();
+        _hashToNode = new Dictionary<int, Vertex>();
         _hashToNode[_nodes[0].GetHashCode()] = _nodes[0];
     }
 
@@ -101,6 +100,7 @@ public class LinkedArena : MonoBehaviour
 
     public void Split(int nodeIndex)
     {
+        // var nodeIndex = Random.Range(0, _nodes.Count);
         var currentNode = _nodes[nodeIndex];
         Debug.Log($"Splitting node {nodeIndex} of {_nodes.Count - 1}");    // TODO: remove
         
@@ -181,7 +181,7 @@ public class LinkedArena : MonoBehaviour
         float timeElapsed = 0f;
 
         var baseNormals = new Dictionary<int, Vector2>();
-        foreach (KeyValuePair<int, ArenaNode> entry in _hashToNode)
+        foreach (KeyValuePair<int, Vertex> entry in _hashToNode)
             baseNormals[entry.Key] = entry.Value.transform.up;
         
         var startRadius = _currentRadius;
