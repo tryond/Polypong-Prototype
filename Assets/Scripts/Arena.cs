@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
-using Quaternion = UnityEngine.Quaternion;
-using Vector3 = UnityEngine.Vector3;
 
 public class Arena : DynamicPolygon
 {
@@ -23,12 +19,29 @@ public class Arena : DynamicPolygon
         // setup vertices
         base.Awake();
         
+        // TODO: should I override move to positions ??
+        
+        // set color increments
+        var hueInc = 1f / numSides;
+        var startHue = hueInc / 2f;
+        
         // setup sides
         sides = new List<Side>();
         for (int i = 0; i < verticesList.Count; i++)
         {
-            var side = Instantiate(sidePrefab);
-            // side.SetBounds(verticesList[i], verticesList[(i + 1) % verticesList.Count]);
+            var leftVertex = verticesList[i];
+            var rightVertex = verticesList[(i + 1) % verticesList.Count];
+
+            var leftPos = leftVertex.transform.position;
+            var rightPos = rightVertex.transform.position;
+
+            var position = leftPos + (rightPos - leftPos) / 2f;
+            var rotation = Quaternion.LookRotation(Vector3.forward, transform.position - position);
+            var length = Vector3.Distance(leftPos, rightPos);
+            
+            var side = Instantiate(sidePrefab, position, rotation);
+            side.SetLength(length);
+            side.SetColor(Color.HSVToRGB(startHue + (hueInc * i), 0.6f, 1f));
             sides.Add(side);
         }
         

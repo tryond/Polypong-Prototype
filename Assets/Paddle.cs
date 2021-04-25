@@ -6,6 +6,7 @@ using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
+[RequireComponent(typeof(BoxCollider2D))]
 public class Paddle : MonoBehaviour
 {
     public float maxNormal = 30f;

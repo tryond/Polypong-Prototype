@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
@@ -22,6 +23,9 @@ public class DynamicPolygon : MonoBehaviour
     protected float targetRadius = 0f;
     
     [CanBeNull] protected Coroutine currentTransition;
+
+    [SerializeField] UnityEvent OnTransitionStarted = new UnityEvent();
+    [SerializeField] UnityEvent OnTransitionStopped = new UnityEvent();
     
     protected void OnDrawGizmos()
     {
@@ -148,6 +152,9 @@ public class DynamicPolygon : MonoBehaviour
 
         if (currentTransition != null)
             StopCoroutine(currentTransition);
+        else
+            OnTransitionStarted.Invoke();
+        
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
 
@@ -174,6 +181,9 @@ public class DynamicPolygon : MonoBehaviour
 
         if (currentTransition != null)
             StopCoroutine(currentTransition);
+        else
+            OnTransitionStarted.Invoke();
+        
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
     }
     
@@ -228,6 +238,7 @@ public class DynamicPolygon : MonoBehaviour
 
         // remove collapsed vertices and reset transition
         RemoveCollapsedVertices();
+        OnTransitionStopped.Invoke();
         currentTransition = null;
     }
 
