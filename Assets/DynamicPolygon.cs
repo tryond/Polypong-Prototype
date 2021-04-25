@@ -14,8 +14,8 @@ public class DynamicPolygon : MonoBehaviour
     [SerializeField] protected float transitionTime = 1f;
     [SerializeField] protected GameObject vertexPrefab;
     
-    protected List<GameObject> verticesList;
-    protected Dictionary<int, GameObject> verticesMap;
+    protected List<GameObject> vertexList;
+    protected Dictionary<int, GameObject> vertexMap;
     protected HashSet<int> collapseVertices;
     protected Dictionary<int, Vector2> targetNormals;
     
@@ -38,8 +38,8 @@ public class DynamicPolygon : MonoBehaviour
     protected virtual void Awake()
     {
         // create vertex collections
-        verticesList = new List<GameObject>();
-        verticesMap = new Dictionary<int, GameObject>();
+        vertexList = new List<GameObject>();
+        vertexMap = new Dictionary<int, GameObject>();
         collapseVertices = new HashSet<int>();
         targetNormals = new Dictionary<int, Vector2>();
         
@@ -49,8 +49,8 @@ public class DynamicPolygon : MonoBehaviour
             var vertex = Instantiate(vertexPrefab);
             vertex.SetActive(true);
             
-            verticesList.Add(vertex);
-            verticesMap[vertex.GetHashCode()] = vertex;
+            vertexList.Add(vertex);
+            vertexMap[vertex.GetHashCode()] = vertex;
         }
         
         // set targets
@@ -67,18 +67,18 @@ public class DynamicPolygon : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         
         else if (Input.GetKeyDown(KeyCode.S))
-            Split(Random.Range(0, verticesList.Count));
+            Split(Random.Range(0, vertexList.Count));
         
         else if (Input.GetKeyDown(KeyCode.C))
         {
-            var activeVertices = verticesList.FindAll(
+            var activeVertices = vertexList.FindAll(
                 v => !collapseVertices.Contains(v.GetHashCode()));
 
             if (activeVertices.Count <= 1)
                 return;
             
             var randomActiveVertex = activeVertices[Random.Range(0, activeVertices.Count)];
-            Collapse(verticesList.IndexOf(randomActiveVertex));
+            Collapse(vertexList.IndexOf(randomActiveVertex));
         }
     }
     
@@ -91,28 +91,28 @@ public class DynamicPolygon : MonoBehaviour
         var currentRadiusColor = Color.green;
         var targetRadiusColor = Color.red;
         
-        for (int i = 0; i < verticesList.Count; i++)
+        for (int i = 0; i < vertexList.Count; i++)
         {
-            var nodeHash = verticesList[i].GetHashCode();
+            var nodeHash = vertexList[i].GetHashCode();
             
             // draw arena outline
             Debug.DrawLine(
-                verticesList[i].transform.position,
-                verticesList[(i + 1) % verticesList.Count].transform.position,
+                vertexList[i].transform.position,
+                vertexList[(i + 1) % vertexList.Count].transform.position,
                 outlineColor,
                 Time.deltaTime);
             
             // draw path to target positions
             Debug.DrawLine(
-                verticesList[i].transform.position, 
+                vertexList[i].transform.position, 
                 (targetRadius * targetNormals[nodeHash]) + (Vector2) transform.position,
                 targetPositionColor, 
                 Time.deltaTime);
             
             // draw node normals
             Debug.DrawRay(
-                verticesList[i].transform.position,
-                verticesList[i].transform.up,
+                vertexList[i].transform.position,
+                vertexList[i].transform.up,
                 normalColor,
                 Time.deltaTime);
         }
@@ -131,21 +131,25 @@ public class DynamicPolygon : MonoBehaviour
             Time.deltaTime);
     }
 
-    protected void Split(int vertexIndex)
+    protected virtual bool Split(int vertexIndex)
     {
-        var vertex = verticesList[vertexIndex];
-        var nextVertex = verticesList[(vertexIndex + 1) % verticesList.Count];
-
+        var vertex = vertexList[vertexIndex];
+        var nextVertex = vertexList[(vertexIndex + 1) % vertexList.Count];
+        var vertexAdded = true;
+        
         // if already collapsing, stop collapse
         if (collapseVertices.Contains(nextVertex.GetHashCode()))
+        {
             collapseVertices.Remove(nextVertex.GetHashCode());
+            vertexAdded = false;
+        }
         
         // else, clone current vertex
         else
         {
             nextVertex = Instantiate(vertex);
-            verticesMap[nextVertex.GetHashCode()] = nextVertex;
-            verticesList.Insert(vertexIndex, nextVertex);
+            vertexMap[nextVertex.GetHashCode()] = nextVertex;
+            vertexList.Insert(vertexIndex, nextVertex);
         }
 
         SetTargets(vertexIndex, vertex.transform.up);
@@ -156,20 +160,21 @@ public class DynamicPolygon : MonoBehaviour
             OnTransitionStarted.Invoke();
         
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
+        return vertexAdded;
     }
 
-    protected void Collapse(int vertexIndex)
+    protected bool Collapse(int vertexIndex)
     {
-        if (verticesList.Count <= 1)
-            return;
+        if (vertexList.Count <= 1)
+            return false;
         
-        var vertex = verticesList[vertexIndex];
-        var nextVertexIndex = (vertexIndex + 1) % verticesList.Count;
-        var nextVertex = verticesList[nextVertexIndex];
+        var vertex = vertexList[vertexIndex];
+        var nextVertexIndex = (vertexIndex + 1) % vertexList.Count;
+        var nextVertex = vertexList[nextVertexIndex];
 
         // if already collapsing, return
         if (collapseVertices.Contains(nextVertex.GetHashCode()))
-            return;
+            return false;
 
         collapseVertices.Add(nextVertex.GetHashCode());
         
@@ -185,18 +190,19 @@ public class DynamicPolygon : MonoBehaviour
             OnTransitionStarted.Invoke();
         
         currentTransition = StartCoroutine(MoveToTargets(transitionTime));
+        return true;
     }
     
     protected void SetTargets(int baseIndex, Vector2 baseUp, bool outward = true)
     {
-        var numActiveVertices = verticesList.Count - collapseVertices.Count;
+        var numActiveVertices = vertexList.Count - collapseVertices.Count;
         var normals = Polygon.GetVertexNormals(numActiveVertices, baseUp, 0, outward);
 
         var j = 0;
-        for (var i = 0; i < verticesList.Count; i++)
+        for (var i = 0; i < vertexList.Count; i++)
         {
-            var index = (baseIndex + i) % verticesList.Count;
-            var vertex = verticesList[index];
+            var index = (baseIndex + i) % vertexList.Count;
+            var vertex = vertexList[index];
             targetNormals[vertex.GetHashCode()] = normals[j];
 
             // only move to the next target if current vertex is not collapsing
@@ -216,7 +222,7 @@ public class DynamicPolygon : MonoBehaviour
         
         // set vertex starting normals
         var baseNormals = new Dictionary<int, Vector2>();
-        foreach (KeyValuePair<int, GameObject> hashAndVertex in verticesMap)
+        foreach (KeyValuePair<int, GameObject> hashAndVertex in vertexMap)
             baseNormals[hashAndVertex.Key] = hashAndVertex.Value.transform.up;
         
         while (t < 1f)
@@ -224,13 +230,7 @@ public class DynamicPolygon : MonoBehaviour
             t = SmoothStop(elapsedTime, overTime);
             Radius = Mathf.Lerp(startRadius, targetRadius, t);
             
-            // update vertex normals
-            for (int i = 0; i < verticesList.Count; i++)
-            {
-                var vertex = verticesList[i];
-                vertex.transform.up = Vector2.Lerp(baseNormals[vertex.GetHashCode()], targetNormals[vertex.GetHashCode()], t);
-                vertex.transform.position = (Radius * vertex.transform.up) + transform.position;
-            }
+            UpdateVertexPositions(baseNormals, targetNormals, t);
 
             elapsedTime += Time.deltaTime;
             yield return new WaitForFixedUpdate();
@@ -242,15 +242,25 @@ public class DynamicPolygon : MonoBehaviour
         currentTransition = null;
     }
 
+    protected virtual void UpdateVertexPositions(Dictionary<int, Vector2> fromMap, Dictionary<int, Vector2> toMap, float t)
+    {
+        for (int i = 0; i < vertexList.Count; i++)
+        {
+            var vertex = vertexList[i];
+            vertex.transform.up = Vector2.Lerp(fromMap[vertex.GetHashCode()], toMap[vertex.GetHashCode()], t);
+            vertex.transform.position = (Radius * vertex.transform.up) + transform.position;
+        }
+    }
+    
     protected virtual void RemoveCollapsedVertices()
     {
         // destroy collapsed vertices
         foreach (var vertexHash in collapseVertices.ToList())
         {
-            var vertex = verticesMap[vertexHash];
+            var vertex = vertexMap[vertexHash];
 
-            verticesList.Remove(vertex);
-            verticesMap.Remove(vertexHash);
+            vertexList.Remove(vertex);
+            vertexMap.Remove(vertexHash);
             collapseVertices.Remove(vertexHash);
             
             Destroy(vertex.gameObject);
