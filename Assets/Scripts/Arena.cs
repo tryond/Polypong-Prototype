@@ -12,12 +12,17 @@ public class Arena : DynamicPolygon
     [SerializeField] private Paddle enemyPaddlePrefab;
 
     private List<Side> sideList;
+    protected Dictionary<int, Side> sideMap;
+    protected Dictionary<int, int> vertexToSide;
     
     public UnityEvent<int> OnNumSidesChanged = new UnityEvent<int>();
 
     protected override void Awake()
     {
         sideList = new List<Side>();
+        sideMap = new Dictionary<int, Side>();
+        vertexToSide = new Dictionary<int, int>();
+        
         base.Awake();
     }
 
@@ -25,8 +30,12 @@ public class Arena : DynamicPolygon
     {
         for (int i = 0; i < vertexList.Count; i++)
         {
+            var vertex = vertexList[i];
             var side = Instantiate(sidePrefab);
+            
             sideList.Add(side);
+            sideMap[side.GetHashCode()] = side;
+            vertexToSide[vertex.GetHashCode()] = side.GetHashCode();
         }
         UpdateSidePositions();
        
@@ -74,6 +83,8 @@ public class Arena : DynamicPolygon
         // instantiate off-camera
         var side = Instantiate(sidePrefab, new Vector3(1000f, 1000f, 0f), Quaternion.identity);
         sideList.Insert(vertexIndex, side);
+        sideMap[side.GetHashCode()] = side;
+        vertexToSide[vertexList[vertexIndex].GetHashCode()] = side.GetHashCode();
         
         return true;
     }
@@ -89,11 +100,12 @@ public class Arena : DynamicPolygon
         // destroy collapsed sides
         foreach (var vertexHash in collapseVertices.ToList())
         {
-            var vertex = vertexMap[vertexHash];
-            var sideIndex = vertexList.IndexOf(vertex);
-            
-            var side = sideList[sideIndex];
-            sideList.RemoveAt(sideIndex);
+            var sideHash = vertexToSide[vertexHash];
+            var side = sideMap[sideHash];
+
+            sideList.Remove(side);
+            sideMap.Remove(sideHash);
+            vertexToSide.Remove(vertexHash);
             
             Destroy(side.gameObject);
         }

@@ -13,10 +13,10 @@ TagManager:
   - 
   - Water
   - UI
-  - Arena
+  - Posts
   - Balls
   - Paddles
-  - 
+  - Arena
   - 
   - 
   - 
@@ -42,4 +42,13 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: Background
+    uniqueID: 2725082377
+    locked: 0
+  - name: Sides
+    uniqueID: 1541022983
+    locked: 0
+  - name: Vertices
+    uniqueID: 117125875
     locked: 0
