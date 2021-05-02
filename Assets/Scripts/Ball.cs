@@ -22,9 +22,9 @@ public class Ball : MonoBehaviour
         rb.velocity = Vector2.zero;
     }
     
-    private void OnCollisionExit2D(Collision2D other) => OnBounce.Invoke(this);
+    // private void OnCollisionExit2D(Collision2D other) => OnBounce.Invoke(this);
 
-    private void OnTriggerExit2D(Collider2D other) => OnBounce.Invoke(this);
+    // private void OnTriggerExit2D(Collider2D other) => OnBounce.Invoke(this);
 
     private void CheckStatus()
     {

@@ -49,6 +49,9 @@ TagManager:
   - name: Sides
     uniqueID: 1541022983
     locked: 0
+  - name: Paddles
+    uniqueID: 1760051381
+    locked: 0
   - name: Vertices
     uniqueID: 117125875
     locked: 0

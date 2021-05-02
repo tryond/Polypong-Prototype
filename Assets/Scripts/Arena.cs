@@ -1,19 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Shapes;
 using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
+using Random = UnityEngine.Random;
 
 public class Arena : DynamicPolygon
 {
     [SerializeField] private Side sidePrefab;
-    [SerializeField] private Paddle playerPaddlePrefab;
-    [SerializeField] private Paddle enemyPaddlePrefab;
 
+    [SerializeField] private Side playerSide;
+    [SerializeField] private Side enemySidePrefab;
+    
     private List<Side> sideList;
     protected Dictionary<int, Side> sideMap;
+    
     protected Dictionary<int, int> vertexToSide;
+    protected Dictionary<int, int> sideToVertex;
     
     public UnityEvent<int> OnNumSidesChanged = new UnityEvent<int>();
 
@@ -21,7 +27,9 @@ public class Arena : DynamicPolygon
     {
         sideList = new List<Side>();
         sideMap = new Dictionary<int, Side>();
+        
         vertexToSide = new Dictionary<int, int>();
+        sideToVertex = new Dictionary<int, int>();
         
         base.Awake();
     }
@@ -30,21 +38,18 @@ public class Arena : DynamicPolygon
     {
         for (int i = 0; i < vertexList.Count; i++)
         {
+            var side = i == 0 ? playerSide : Instantiate(enemySidePrefab);
             var vertex = vertexList[i];
-            var side = Instantiate(sidePrefab);
             
             sideList.Add(side);
             sideMap[side.GetHashCode()] = side;
+            
             vertexToSide[vertex.GetHashCode()] = side.GetHashCode();
+            sideToVertex[side.GetHashCode()] = vertex.GetHashCode();
+            
+            side.gameObject.SetActive(true);
         }
         UpdateSidePositions();
-       
-        // setup paddles
-        // var player = Instantiate(playerPaddlePrefab);
-        // sides[0].SetPaddle(player);
-        // for (int i = 1; i < sides.Count; i++)
-        // sides[i].SetPaddle(Instantiate(enemyPaddlePrefab));
-        // setup sides
     }
     
     private void UpdateSidePositions()
@@ -62,7 +67,7 @@ public class Arena : DynamicPolygon
 
             var side = sideList[i];
             var sideTransform = side.transform;
-            
+
             sideTransform.position = leftPos + (rightPos - leftPos) / 2f;
             sideTransform.up = (transform.position - sideTransform.position).normalized;
             
@@ -73,8 +78,43 @@ public class Arena : DynamicPolygon
             side.SetColors(startColor, endColor);
         }
     }
+
+    public void SplitRandom()
+    {
+        var randomIndex = Random.Range(0, vertexList.Count);
+        Split(randomIndex);
+    }
+
+    public void CollapseRandom()
+    {
+        var randomIndex = Random.Range(0, vertexList.Count);
+        Collapse(randomIndex);
+    }
+
+    public void DestroySide(Side side, Ball ball)
+    {
+        side.SetPaddle(null);
+        
+        // TODO: this whole section needs work...
+        // consider revisiting the API, this is getting messy...
+        
+        // TODO: check if only two active sides remaining
+        var paddleCount = sideList.Count(s => s.paddle);
+        if (paddleCount <= 2)
+        {
+            var nextIndex = (sideList.IndexOf(side) + 1) % sideList.Count;
+            Split(nextIndex);    // TODO: this should split the opposite side
+        }
+        else
+        {
+            var vertexHash = sideToVertex[side.GetHashCode()];
+            var vertex = vertexMap[vertexHash];
+            Collapse(vertex);
+        }
+    }
     
-    protected override bool Split(int vertexIndex)
+    
+    public override bool Split(int vertexIndex)
     {
         var vertexAdded = base.Split(vertexIndex);
         if (!vertexAdded)
@@ -84,7 +124,9 @@ public class Arena : DynamicPolygon
         var side = Instantiate(sidePrefab, new Vector3(1000f, 1000f, 0f), Quaternion.identity);
         sideList.Insert(vertexIndex, side);
         sideMap[side.GetHashCode()] = side;
+        
         vertexToSide[vertexList[vertexIndex].GetHashCode()] = side.GetHashCode();
+        sideToVertex[side.GetHashCode()] = vertexList[vertexIndex].GetHashCode();
         
         return true;
     }
@@ -105,7 +147,9 @@ public class Arena : DynamicPolygon
 
             sideList.Remove(side);
             sideMap.Remove(sideHash);
+            
             vertexToSide.Remove(vertexHash);
+            sideToVertex.Remove(sideHash);
             
             Destroy(side.gameObject);
         }

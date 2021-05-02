@@ -132,7 +132,7 @@ public class DynamicPolygon : MonoBehaviour
             Time.deltaTime);
     }
 
-    protected virtual bool Split(int vertexIndex)
+    public virtual bool Split(int vertexIndex)
     {
         var vertex = vertexList[vertexIndex];
         var nextVertex = vertexList[(vertexIndex + 1) % vertexList.Count];
@@ -164,7 +164,13 @@ public class DynamicPolygon : MonoBehaviour
         return vertexAdded;
     }
 
-    protected bool Collapse(int vertexIndex)
+    public bool Collapse(GameObject vertex)
+    {
+        var vertexIndex = vertexList.IndexOf(vertex);
+        return Collapse(vertexIndex);
+    }
+    
+    public bool Collapse(int vertexIndex)
     {
         if (vertexList.Count <= 1)
             return false;
@@ -172,14 +178,13 @@ public class DynamicPolygon : MonoBehaviour
         Debug.Log($"Collapsing node at index {vertexIndex}");
         
         var vertex = vertexList[vertexIndex];
-        var nextVertexIndex = (vertexIndex + 1) % vertexList.Count;
-        var nextVertex = vertexList[nextVertexIndex];
-
-        // if already collapsing, return
-        if (collapseVertices.Contains(nextVertex.GetHashCode()))
+        
+        if (collapseVertices.Contains(vertex.GetHashCode()))
             return false;
-
-        collapseVertices.Add(nextVertex.GetHashCode());
+        
+        collapseVertices.Add(vertex.GetHashCode());
+        
+        var nextVertexIndex = (vertexIndex + 1) % vertexList.Count;
         
         // if collapsing last node, adjust positioning
         if (nextVertexIndex < vertexIndex)

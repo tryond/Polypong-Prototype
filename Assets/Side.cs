@@ -34,7 +34,7 @@ using UnityEngine.Events;
 
         // TODO: this needs to be adjusted back when paddle is removed
         var paddleHeight = paddle.GetComponent<BoxCollider2D>().size.y;
-        collider.offset = new Vector2(0f, colliderBaseOffsetY + (1.5f * paddleHeight));
+        collider.offset = new Vector2(0f, colliderBaseOffsetY - (0.55f * paddleHeight));
     }
 
     public void SetColors(Color startColor, Color endColor)
@@ -53,6 +53,18 @@ using UnityEngine.Events;
         collider.size = new Vector2(length, colliderBaseSizeY);
     }
 
+    public void SetPaddle([CanBeNull] Paddle paddle)
+    {
+        if (this.paddle && !paddle)
+            Destroy(this.paddle.gameObject);
+        
+        this.paddle = paddle;
+        
+        // update the goal y offset according to the height of the paddle if not null
+        var colliderOffsetY = paddle ? 0.55f * paddle.GetComponent<BoxCollider2D>().size.y : 0f;
+        collider.offset = new Vector2(0f, colliderBaseOffsetY - colliderOffsetY);
+    }
+    
     public void OnCollisionEnter2D(Collision2D other)
     {
         if (!other.gameObject.CompareTag("Ball"))
