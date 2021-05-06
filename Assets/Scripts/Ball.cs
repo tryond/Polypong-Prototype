@@ -21,10 +21,16 @@ public class Ball : MonoBehaviour
         gameObject.SetActive(false);
         rb.velocity = Vector2.zero;
     }
-    
-    // private void OnCollisionExit2D(Collision2D other) => OnBounce.Invoke(this);
 
-    // private void OnTriggerExit2D(Collider2D other) => OnBounce.Invoke(this);
+    private void OnCollisionExit2D(Collision2D other)
+    {
+        OnBounce.Invoke(GetComponent<Ball>());
+    }
+    
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        OnBounce.Invoke(GetComponent<Ball>());
+    }
 
     private void CheckStatus()
     {

@@ -43,7 +43,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 454d6cd9237d74cb5bcccd7b06ff5702, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ballPrefab: {fileID: 0}
+  ballPrefab: {fileID: 3004066060127386887, guid: d0219add2ebc444aaa303ee276e073c4, type: 3}
   balls: []
   random: 1
   delay: 0.2

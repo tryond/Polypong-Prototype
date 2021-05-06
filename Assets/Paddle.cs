@@ -17,7 +17,7 @@ public class Paddle : MonoBehaviour
     
     private Vector2 _normal;
 
-    private Vector2 targetPosition;
+    protected Vector2 targetPosition;
     private Vector3 velocity;
     
     private Rigidbody2D rb;
@@ -29,7 +29,7 @@ public class Paddle : MonoBehaviour
     public float maxHealth = 100f;
     private float health;
     
-    public void Start()
+    public virtual void Start()
     {
         _normal = transform.up;
 

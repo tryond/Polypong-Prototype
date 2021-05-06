@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Ball
   - Paddle
+  - Vertex
   layers:
   - Default
   - TransparentFX

@@ -95,14 +95,16 @@ public class Arena : DynamicPolygon
     {
         side.SetPaddle(null);
         
+        var paddleCount = sideList.Count(s => s.paddle);
+        OnNumSidesChanged.Invoke(paddleCount);
+        
         // TODO: this whole section needs work...
         // consider revisiting the API, this is getting messy...
         
         // TODO: check if only two active sides remaining
-        var paddleCount = sideList.Count(s => s.paddle);
-        if (paddleCount <= 2)
+        if (paddleCount == 2)
         {
-            var nextIndex = (sideList.IndexOf(side) + 1) % sideList.Count;
+            var nextIndex = (sideList.IndexOf(side) + 2) % sideList.Count;
             Split(nextIndex);    // TODO: this should split the opposite side
         }
         else

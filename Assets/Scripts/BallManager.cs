@@ -116,9 +116,11 @@ public class BallManager : MonoBehaviour
     
     public void SetNextRound(int numPlayers)
     {
+        Debug.Log($"Setting next round to {numPlayers} players");
+        
         if (_rounds.Count <= 0)
             return;
-        
+
         var nextRound = _rounds.Peek();
         if (numPlayers <= nextRound.sidesRemaining)
             round = _rounds.Dequeue();
