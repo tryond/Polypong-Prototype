@@ -313,7 +313,7 @@ GameObject:
   - component: {fileID: 5636277223834238788}
   m_Layer: 0
   m_Name: EnemySide
-  m_TagString: Untagged
+  m_TagString: Side
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -439,6 +439,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8296757e6fcd41ed99ef9e4352db08b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useCullingMasks: 0
+  paddle: {fileID: 0}
   OnSideHit:
     m_PersistentCalls:
       m_Calls:
@@ -464,10 +466,10 @@ BoxCollider2D:
   m_Enabled: 1
   m_Density: 1
   m_Material: {fileID: 0}
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: -0.65}
+  m_Offset: {x: 0, y: -0.5}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}

@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using MoreMountains.NiceVibrations;
 using UnityEngine;
 using UnityEngine.Events;
@@ -7,7 +8,7 @@ using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
 [RequireComponent(typeof(BoxCollider2D))]
-public class Paddle : MonoBehaviour
+public class Paddle : MonoBehaviour, IReflector
 {
     public float maxNormal = 30f;
     public float maxReflection = 45f;
@@ -29,6 +30,8 @@ public class Paddle : MonoBehaviour
     public float maxHealth = 100f;
     private float health;
     
+    private CapsuleCollider2D collider;
+    
     public virtual void Start()
     {
         _normal = transform.up;
@@ -39,6 +42,8 @@ public class Paddle : MonoBehaviour
 
         baseHorizontalScale = transform.localScale.x;
         health = maxHealth;
+
+        collider = GetComponent<CapsuleCollider2D>();
     }
 
     public void FixedUpdate()
@@ -61,37 +66,49 @@ public class Paddle : MonoBehaviour
         Debug.DrawRay(transform.position, _normal, Color.green, Time.deltaTime);
     }
 
-    public void OnTriggerEnter2D(Collider2D other)
-    {
-        if (!other.gameObject.CompareTag("Ball"))
-            return;
+    // public void OnTriggerEnter2D(Collider2D other)
+    // {
+    //     var ball = other.gameObject.GetComponent<Ball>();
+    //     if (ball == null || ball.collidingWith != collider)
+    //         return;
+    //
+    //     OnPaddleHit.Invoke(ball);
+    // }
 
-        var ball = other.gameObject.GetComponent<Ball>();
-        OnPaddleHit.Invoke(ball);
-        
-        ReflectBall(ball);
-    }
-    
-    private void ReflectBall(Ball ball)
+
+    // private void ReflectBall(Ball ball)
+    // {
+    //     // check that ball is moving towards paddle
+    //     if (Vector3.Dot(_normal, ball.velocity) >= 0)
+    //         return;
+    //     
+    //     var incoming = ball.velocity;
+    //     var outgoing = Vector3.Reflect(incoming, _normal);
+    //     
+    //     var difference = Vector3.SignedAngle(outgoing, transform.up, transform.forward);
+    //     difference = Mathf.Clamp(difference, -maxReflection, maxReflection);
+    //     outgoing = Quaternion.Euler(0f, 0f, -difference) * transform.up * incoming.magnitude;
+    //     
+    //     ball.velocity = outgoing;
+    //     MMVibrationManager.Haptic(HapticTypes.RigidImpact);
+    // }
+
+
+    public Vector2 GetReflection(Vector2 contactPoint, Vector2 direction)
     {
-        var ballRb = ball.GetComponent<Rigidbody2D>();
+        var incoming = direction.normalized;
         
         // check that ball is moving towards paddle
-        if (Vector3.Dot(_normal, ballRb.velocity) >= 0)
-            return;
+        if (Vector3.Dot(_normal, incoming) >= 0)
+            return incoming;
         
-        var incoming = ballRb.velocity;
         var outgoing = Vector3.Reflect(incoming, _normal);
         
         var difference = Vector3.SignedAngle(outgoing, transform.up, transform.forward);
         difference = Mathf.Clamp(difference, -maxReflection, maxReflection);
-        outgoing = Quaternion.Euler(0f, 0f, -difference) * transform.up * incoming.magnitude;
-        
-        ballRb.velocity = outgoing;
-        MMVibrationManager.Haptic(HapticTypes.RigidImpact);
-        
-        // TODO: debug
-        Debug.DrawRay(transform.position, outgoing, Color.blue, Time.deltaTime);
+        outgoing = Quaternion.Euler(0f, 0f, -difference) * transform.up;
+
+        return outgoing.normalized;
     }
 
     public void SetTargetPosition(Vector3 target) => targetPosition = target;
@@ -109,6 +126,11 @@ public class Paddle : MonoBehaviour
     {
         health = Mathf.Min(health + ball.healing, maxHealth);
         transform.localScale = new Vector3( (health / maxHealth) * baseHorizontalScale, transform.localScale.y, transform.localScale.z );
+    }
+
+    public void PaddleHit(Ball ball)
+    {
+        OnPaddleHit.Invoke(ball);
     }
     
 }

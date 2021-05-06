@@ -1,13 +1,17 @@
 using System;
+using System.Numerics;
 using JetBrains.Annotations;
 using Shapes;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
+using Quaternion = UnityEngine.Quaternion;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 [RequireComponent(typeof(BoxCollider2D))]
 [RequireComponent(typeof(Line))]
-[ExecuteAlways] public class Side : ImmediateModeShapeDrawer
+[ExecuteAlways] public class Side : ImmediateModeShapeDrawer, IReflector
 {
     public float Length { get; set; }
 
@@ -33,8 +37,8 @@ using UnityEngine.Events;
             return;
 
         // TODO: this needs to be adjusted back when paddle is removed
-        var paddleHeight = paddle.GetComponent<BoxCollider2D>().size.y;
-        collider.offset = new Vector2(0f, colliderBaseOffsetY - (0.55f * paddleHeight));
+        // var paddleHeight = paddle.GetComponent<BoxCollider2D>().size.y;
+        // collider.offset = new Vector2(0f, colliderBaseOffsetY - (0.55f * paddleHeight));
     }
 
     public void SetColors(Color startColor, Color endColor)
@@ -61,16 +65,30 @@ using UnityEngine.Events;
         this.paddle = paddle;
         
         // update the goal y offset according to the height of the paddle if not null
-        var colliderOffsetY = paddle ? 0.55f * paddle.GetComponent<BoxCollider2D>().size.y : 0f;
-        collider.offset = new Vector2(0f, colliderBaseOffsetY - colliderOffsetY);
+        // var colliderOffsetY = paddle ? 0.55f * paddle.GetComponent<BoxCollider2D>().size.y : 0f;
+        // collider.offset = new Vector2(0f, colliderBaseOffsetY - colliderOffsetY);
     }
-    
-    public void OnCollisionEnter2D(Collision2D other)
-    {
-        if (!other.gameObject.CompareTag("Ball"))
-            return;
 
-        var ball = other.gameObject.GetComponent<Ball>();
+    // public void OnTriggerEnter2D(Collider2D other)
+    // {
+    //     var ball = other.gameObject.GetComponent<Ball>();
+    //     if (ball == null || ball.collidingWith != collider)
+    //         return;
+    //
+    //     // var headedTowards = Vector2.Dot(ball.direction, transform.up) <= 0;
+    //     // if (!headedTowards)
+    //     //     return;
+    //     
+    //     OnSideHit.Invoke(ball);
+    // }
+
+    public Vector2 GetReflection(Vector2 contactPoint, Vector2 direction)
+    {
+        return Vector2.Reflect(direction.normalized, transform.up);
+    }
+
+    public void SideHit(Ball ball)
+    {
         OnSideHit.Invoke(ball);
     }
 }

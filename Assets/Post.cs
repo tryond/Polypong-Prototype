@@ -2,20 +2,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Post : MonoBehaviour
+public class Post : MonoBehaviour, IReflector
 {
-    public Post child;
-    
-    
-    // Start is called before the first frame update
-    void Start()
+    [SerializeField] private float noise = 1f;
+    public Vector2 GetReflection(Vector2 contactPoint, Vector2 direction)
     {
-        
-    }
+        // var normal = (contactPoint - (Vector2) transform.position).normalized;
+        // // var normal = -transform.up;
+        // var reflection = Vector2.Reflect(direction.normalized, normal);
+        //
+        // Debug.DrawRay(transform.position, 10f * normal, Color.magenta, 3f);
 
-    // Update is called once per frame
-    void Update()
-    {
+        var reflection = -transform.up;        
         
+        return Quaternion.AngleAxis(Random.Range(-noise, noise), Vector3.forward) * reflection;
     }
 }

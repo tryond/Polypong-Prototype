@@ -175,7 +175,7 @@ public class DynamicPolygon : MonoBehaviour
         if (vertexList.Count <= 1)
             return false;
 
-        Debug.Log($"Collapsing node at index {vertexIndex}");
+        // Debug.Log($"Collapsing node at index {vertexIndex}");
         
         var vertex = vertexList[vertexIndex];
         
@@ -271,7 +271,7 @@ public class DynamicPolygon : MonoBehaviour
             vertexMap.Remove(vertexHash);
             collapseVertices.Remove(vertexHash);
 
-            Debug.Log($"Removing vertex with hash {vertexHash}");
+            // Debug.Log($"Removing vertex with hash {vertexHash}");
             
             Destroy(vertex.gameObject);
         }

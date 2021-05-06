@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 using Vector2 = UnityEngine.Vector2;
 
@@ -48,13 +49,12 @@ public class BallManager : MonoBehaviour
         
         foreach (var r in rounds)
             _rounds.Enqueue(r);
-        
         round = _rounds.Dequeue();
         
         maxBalls = 0;
         foreach (var round in rounds)
             maxBalls = Math.Max(maxBalls, round.numBalls);
-        
+         
         _ballPool = new Ball[maxBalls];
         for (int i = 0; i < maxBalls; i++)
         {
@@ -75,10 +75,9 @@ public class BallManager : MonoBehaviour
             ball.gameObject.SetActive(true);
             balls.Add(ball);
             
-            var rb = ball.gameObject.GetComponent<Rigidbody2D>();
             var direction = random ? new Vector2(UnityEngine.Random.Range(-1f, 1f), UnityEngine.Random.Range(-1f, 1f)).normalized : Vector2.down;
+            ball.SetVelocity(round.speed * direction);
             
-            rb.velocity = round.speed * direction;
             yield return new WaitForSeconds(delay);
         }
     }
@@ -94,8 +93,6 @@ public class BallManager : MonoBehaviour
 
     public void BallBounced(Ball ball)
     {
-        Debug.Log("BOUNCE!");
-        
         // if too many active, reset
         if (balls.Count > round.numBalls)
         {
@@ -105,18 +102,19 @@ public class BallManager : MonoBehaviour
         }
         else
         {
-            Debug.Log(balls.Count + " <= " + round.numBalls);
+            // Debug.Log(balls.Count + " <= " + round.numBalls);
         }
 
         // otherwise update speed
-        var rb = ball.GetComponent<Rigidbody2D>();
-        rb.velocity = round.speed * rb.velocity.normalized;
+        // var rb = ball.GetComponent<Rigidbody2D>();
+        // rb.velocity = round.speed * rb.velocity.normalized;
+        ball.speed = round.speed;
     }
     
     
     public void SetNextRound(int numPlayers)
     {
-        Debug.Log($"Setting next round to {numPlayers} players");
+        // Debug.Log($"Setting next round to {numPlayers} players");
         
         if (_rounds.Count <= 0)
             return;

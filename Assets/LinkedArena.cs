@@ -102,7 +102,7 @@ public class LinkedArena : MonoBehaviour
     public void Split(int nodeIndex)
     {
         var currentNode = _nodes[nodeIndex];
-        Debug.Log($"Splitting node {nodeIndex} of {_nodes.Count - 1}");    // TODO: remove
+        // Debug.Log($"Splitting node {nodeIndex} of {_nodes.Count - 1}");    // TODO: remove
         
         var nextNode = _nodes[(nodeIndex + 1) % _nodes.Count];
         if (!nextNode.active)
@@ -134,7 +134,7 @@ public class LinkedArena : MonoBehaviour
             return;
         nextNode.active = false;
         
-        Debug.Log($"Collapsing node {nextNodeIndex} -> {nodeIndex}");    // TODO: remove
+        // Debug.Log($"Collapsing node {nextNodeIndex} -> {nodeIndex}");    // TODO: remove
 
         // if collapsing last node, adjust positioning
         if (nextNodeIndex < nodeIndex)
@@ -151,7 +151,7 @@ public class LinkedArena : MonoBehaviour
     {
         var numActiveNodes = _nodes.Count(node => node.active);
 
-        Debug.Log($"Setting targets for {numActiveNodes} active nodes");
+        // Debug.Log($"Setting targets for {numActiveNodes} active nodes");
         
         // TODO: debug
         lastBaseUp = baseUp;
