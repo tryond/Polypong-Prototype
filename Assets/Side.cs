@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using JetBrains.Annotations;
 using Shapes;
@@ -24,7 +25,12 @@ using Vector3 = UnityEngine.Vector3;
     [CanBeNull] public Paddle paddle;
     
     [SerializeField] UnityEvent<Ball> OnSideHit = new UnityEvent<Ball>();
+    
+    [SerializeField] UnityEvent<Ball> OnBallIncoming = new UnityEvent<Ball>();
+    [SerializeField] UnityEvent<Ball> OnBallOutgoing = new UnityEvent<Ball>();
 
+    public HashSet<Ball> incomingBalls;
+    
     private void Awake()
     {
         collider = GetComponent<BoxCollider2D>();
@@ -39,6 +45,8 @@ using Vector3 = UnityEngine.Vector3;
         // TODO: this needs to be adjusted back when paddle is removed
         // var paddleHeight = paddle.GetComponent<BoxCollider2D>().size.y;
         // collider.offset = new Vector2(0f, colliderBaseOffsetY - (0.55f * paddleHeight));
+        
+        incomingBalls = new HashSet<Ball>();
     }
 
     public void SetColors(Color startColor, Color endColor)
@@ -90,5 +98,27 @@ using Vector3 = UnityEngine.Vector3;
     public void SideHit(Ball ball)
     {
         OnSideHit.Invoke(ball);
+        RemoveIncomingBall(ball);
     }
+
+    public void AddIncomingBall(Ball ball)
+    {
+        if (incomingBalls.Contains(ball))
+            return;
+        
+        incomingBalls.Add(ball);
+        ball.transform.SetParent(transform);
+        OnBallIncoming.Invoke(ball);
+    }
+
+    public void RemoveIncomingBall(Ball ball)
+    {
+        if (!incomingBalls.Contains(ball))
+            return;
+        
+        incomingBalls.Remove(ball);
+        ball.transform.SetParent(null);
+        OnBallOutgoing.Invoke(ball);
+    }
+    
 }

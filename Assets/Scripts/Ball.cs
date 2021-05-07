@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Xml.Schema;
 using JetBrains.Annotations;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 public class Ball : MonoBehaviour
 {
@@ -31,6 +34,9 @@ public class Ball : MonoBehaviour
     
     public bool isColliding;
 
+    public Vector2 lastCollisionPoint;
+    
+    
     [CanBeNull] public Dictionary<String, IReflector> reflectorMap;
 
     // public bool Colliding { get => isColliding != null; }
@@ -46,6 +52,8 @@ public class Ball : MonoBehaviour
         
         isColliding = false;
         reflectorMap = new Dictionary<String, IReflector>();
+
+        lastCollisionPoint = Vector2.zero;
     }
 
     public void Reset()
@@ -57,55 +65,39 @@ public class Ball : MonoBehaviour
     // TODO
     private void FixedUpdate()
     {
-        var collisionsApplied = ApplyCollisions();
-        if (collisionsApplied) isColliding = true;
-
+        ApplyCollisions();
+        // TrackTarget();
+        
         rb.MovePosition(transform.position + (Time.fixedDeltaTime * (Vector3) velocity));
-        // rb.MovePosition((Time.fixedDeltaTime * (Vector3) velocity) + transform.position);
-
-
-        // if (!targetSide)
-        //     return;
-        //
-        // var targetGlobalPos = targetSide.transform.TransformPoint(targetLocalPos);
-        // rb.velocity = (timeToTarget - timeElapsed) * Time.fixedDeltaTime * (targetGlobalPos - transform.position);
-        //
-        // timeElapsed += Time.fixedDeltaTime;
     }
 
-    // private void OnCollisionExit2D(Collision2D other)
-    // {
-    //     OnBounce.Invoke(GetComponent<Ball>());
-    //     SetTargetSide();
-    // }
-    //
-    // private void OnTriggerExit2D(Collider2D other)
-    // {
-    //     OnBounce.Invoke(GetComponent<Ball>());
-    //     SetTargetSide();
-    // }
 
-    // private void SetTargetSide()
-    // {
-    //     Debug.Log("Setting target side!");
-    //     
-    //     Debug.DrawLine(transform.position, 100f * (transform.up + transform.position), Color.blue, 3);
-    //     
-    //     var hits = Physics2D.RaycastAll(transform.position, transform.up, 100f);
-    //     var sideHit = hits.FirstOrDefault(hit => hit.collider.CompareTag("Side"));
-    //     if (!sideHit)
-    //     {
-    //         Debug.Log("NO HITS!");
-    //         return;
-    //     }
-    //     
-    //     targetSide = sideHit.transform.gameObject.GetComponent<Side>();
-    //     targetLocalPos = targetSide.transform.InverseTransformPoint(sideHit.point);
-    //
-    //     var distanceToTarget = Vector2.Distance(sideHit.point,transform.position);
-    //     timeElapsed = 0f;
-    //     timeToTarget = distanceToTarget / speed;
-    // }
+    private void SetTargetSide(Vector2 direction)
+    {
+        Debug.Log("Setting target side!");
+        
+        Debug.DrawLine(transform.position, 100f * direction, Color.blue, 3);
+        
+        var hits = Physics2D.RaycastAll(transform.position, direction, 100f);
+        var sideHit = hits.FirstOrDefault(hit => hit.collider.CompareTag("Side"));
+        if (!sideHit)
+        {
+            Debug.Log("NO HITS!");
+            return;
+        }
+        
+        
+        
+        targetSide = sideHit.transform.gameObject.GetComponent<Side>();
+        // targetLocalPos = targetSide.transform.InverseTransformPoint(sideHit.point);
+        //
+        // var distanceToTarget = Vector2.Distance(sideHit.point,transform.position);
+        // timeElapsed = 0f;
+        // timeToTarget = distanceToTarget / speed;
+        
+        targetSide.AddIncomingBall(this);
+        velocity = speed * direction;
+    }
 
     private bool ApplyCollisions()
     {
@@ -116,18 +108,19 @@ public class Ball : MonoBehaviour
             collidingSide = null;
 
         var outgoing = Vector2.zero;
-
+        lastCollisionPoint = transform.position;
+        
         if (collidingPost)
         {
             Debug.Log("Applying POST");
-            outgoing += collidingPost.GetReflection(transform.position, velocity);
+            outgoing += collidingPost.GetReflection(lastCollisionPoint, velocity);
             collidingPost = null;
         }
 
         if (collidingPaddle)
         {
             Debug.Log("Applying PADDLE");
-            outgoing += collidingPaddle.GetReflection(transform.position, velocity);
+            outgoing += collidingPaddle.GetReflection(lastCollisionPoint, velocity);
             collidingPaddle.PaddleHit(this);
             collidingPaddle = null;
         }
@@ -135,15 +128,33 @@ public class Ball : MonoBehaviour
         if (collidingSide)
         {
             Debug.Log("Applying SIDE");
-            outgoing += collidingSide.GetReflection(transform.position, velocity);
+            outgoing += collidingSide.GetReflection(lastCollisionPoint, velocity);
             collidingSide.SideHit(this);
             collidingSide = null;
         }
 
-        velocity = speed * outgoing.normalized;
+        SetTargetSide(outgoing.normalized);
+        
         OnBounce.Invoke(this);
         return true;
     }
+
+    private void TrackTarget()
+    {
+        if (!targetSide)
+            return;
+
+        var targetGlobalPosition = targetSide.transform.TransformPoint(targetLocalPos);
+
+        // if (timeToTarget <= timeElapsed)
+        //     return;
+        //
+        // SetVelocity(1f / (timeToTarget - timeElapsed) * (targetGlobalPosition - transform.position));
+        // timeElapsed += Time.fixedDeltaTime;
+        
+        SetVelocity(speed * (targetGlobalPosition - transform.position).normalized);
+    }
+    
     
     
     private void OnTriggerEnter2D(Collider2D other)
@@ -166,35 +177,6 @@ public class Ball : MonoBehaviour
         }
         
         Debug.Log($"adding {other.gameObject.tag}");
-    }
-
-    // private void OnTriggerExit2D(Collider2D other)
-    // {
-    //     var reflector = other.gameObject.GetComponent<IReflector>();
-    //     if (reflector == null)
-    //         return;
-    //
-    //     reflectorMap.Remove(reflector.GetHashCode());
-    //     if (reflectorMap.Count <= 0)
-    //         isColliding = false;
-    // }
-
-    private void Bounce(Vector2 direction)
-    {
-        velocity = direction * speed;
-        OnBounce.Invoke(GetComponent<Ball>());
-    }
-
-    public void SetSpeed(float speed)
-    {
-        this.speed = speed;
-        velocity = this.speed * direction;
-    }
-
-    public void SetDirection(Vector2 direction)
-    {
-        this.direction = direction;
-        velocity = speed * this.direction;
     }
 
     public void SetVelocity(Vector2 velocity)

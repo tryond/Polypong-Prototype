@@ -22,18 +22,18 @@ public class GameManager : MonoBehaviour
     {
         Application.targetFrameRate = targetFrameRate;
         Cursor.visible = cursorVisible;
-        _targetOrtho = cam.orthographicSize;
+        // _targetOrtho = cam.orthographicSize;
     }
 
-    public void LateUpdate()
-    {
-        if (player)
-            cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
-
-        // _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
-        _targetOrtho = (arena.Radius / cam.aspect) + (sideBuffer * 2f);
-        cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, _targetOrtho, ref _velocity, smoothTime);
-    }
+    // public void LateUpdate()
+    // {
+    //     if (player)
+    //         cam.transform.rotation = Quaternion.LookRotation(Vector3.forward, player.transform.up);
+    //
+    //     // _targetOrtho = arena.GetDiameter() / (2f * cam.aspect);
+    //     _targetOrtho = (arena.Radius / cam.aspect) + (sideBuffer * 2f);
+    //     cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, _targetOrtho, ref _velocity, smoothTime);
+    // }
 
     public void Restart()
     {

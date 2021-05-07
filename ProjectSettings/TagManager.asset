@@ -7,6 +7,8 @@ TagManager:
   - Ball
   - Paddle
   - Vertex
+  - Side
+  - Canvas
   layers:
   - Default
   - TransparentFX
