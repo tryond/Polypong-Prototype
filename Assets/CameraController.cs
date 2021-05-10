@@ -1,9 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.Numerics;
 using JetBrains.Annotations;
-using MoreMountains.NiceVibrations;
-using Shapes;
 using UnityEngine;
 using Quaternion = UnityEngine.Quaternion;
 using Vector2 = UnityEngine.Vector2;
@@ -17,9 +13,13 @@ public class CameraController : MonoBehaviour
     
     [SerializeField] [CanBeNull] private GameObject offscreenIndicatorPrefab;
     
-    [SerializeField] private float topBuffer = 1f;
+    [SerializeField] private float topBuffer = 2f;
     [SerializeField] private float sideBuffer = 0.5f;
-    [SerializeField] private float bottomBuffer = 2f;
+    [SerializeField] private float bottomBuffer = 3f;
+    [SerializeField] private float thumbBuffer = 0.5f;
+
+    private Vector2 topViewportPos = Vector2.zero;
+    private Vector2 bottomViewportPos = Vector2.zero;
     
     private Vector3 inPosition;
     private float inOrtho;
@@ -31,7 +31,7 @@ public class CameraController : MonoBehaviour
     private float targetOrtho;
     
     [SerializeField] private float smoothTime = 0.5f;
-    [SerializeField] private float speed = 15;
+    [SerializeField] private float speed = 100;
     
     private Vector3 positionVelocity = Vector3.zero;
     private float orthoVelocity = 0f;
@@ -77,6 +77,9 @@ public class CameraController : MonoBehaviour
 
     private void PlaceOffscreenIndicators()
     {
+        if (!playerSide)
+            return;
+        
         // foreach (var ball in (BallManager.instance.balls))
         foreach (var ballAndIndicator in ballToOffscreenIndicator)
         {
@@ -273,27 +276,21 @@ public class CameraController : MonoBehaviour
         return screenPoint.x > 0 && screenPoint.x < 1 && screenPoint.y > 0 && screenPoint.y < 1;
     }
 
-    private void Update()
-    {
-        DrawBounds();
-        PlaceOffscreenIndicators();
-    }
-
     private void LateUpdate()
     {
         UpdateArenaView(out outOrtho, out outPosition);
         UpdatePlayerView(out inOrtho, out inPosition);
 
-        if (zoomedOut || !playerSide)
-        {
-            targetOrtho = outOrtho;
-            targetPosition = outPosition;
-        }
-        else
-        {
-            targetOrtho = inOrtho;
-            targetPosition = inPosition;
-        }
+        // if (zoomedOut || !playerSide)
+        // {
+        //     targetOrtho = outOrtho;
+        //     targetPosition = outPosition;
+        // }
+        // else
+        // {
+        //     targetOrtho = inOrtho;
+        //     targetPosition = inPosition;
+        // }
         
         if (Vector3.Distance(cam.transform.position, targetPosition) < 0.01f)
             return;
@@ -303,6 +300,9 @@ public class CameraController : MonoBehaviour
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, targetOrtho, ref orthoVelocity, smoothTime, speed);
         
         cam.transform.up = playerSide ? playerSide.transform.up : arena.transform.up;
+        
+        PlaceOffscreenIndicators();
+        DrawBounds();
     }
     
     private void UpdatePlayerView(out float ortho, out Vector3 position)
@@ -319,6 +319,8 @@ public class CameraController : MonoBehaviour
         var direction = playerSide.transform.up;
         position = playerSide.transform.position + (ortho - bottomBuffer) * direction;
         position = new Vector3(position.x, position.y, -10f);
+
+        bottomViewportPos = new Vector2(0f, bottomBuffer / (2f * ortho));
     }
 
     private void UpdateArenaView(out float ortho, out Vector3 position)
@@ -326,8 +328,11 @@ public class CameraController : MonoBehaviour
         ortho = (arena.Radius / cam.aspect) + (sideBuffer * 2f);
 
         var direction = playerSide ? playerSide.transform.up : arena.transform.up;
+
         position = arena.transform.position - (ortho - arena.Radius - topBuffer) * direction;
         position = new Vector3(position.x, position.y, -10f);
+
+        topViewportPos = new Vector2(0f, 1f - ((2f * arena.Radius + topBuffer) / (2f * ortho)));
     }
 
     public void ToggleZoom()
@@ -349,7 +354,16 @@ public class CameraController : MonoBehaviour
 
     public void SetCameraZoom(Vector3 position)
     {
-        Debug.Log($"Zoom: {position.y}");
+        var viewportPoint = cam.WorldToViewportPoint(position);
+
+        Debug.DrawLine(cam.ViewportToWorldPoint(topViewportPos), cam.ViewportToWorldPoint(bottomViewportPos), Color.green, Time.deltaTime);
+        
+        var p = Mathf.Clamp((viewportPoint.y - bottomViewportPos.y) / (topViewportPos.y - bottomViewportPos.y), 0f, 1f);
+
+        targetOrtho = Mathf.Lerp(inOrtho, outOrtho, p);
+        targetPosition = Vector3.Lerp(inPosition, outPosition, p);
+        
+        Debug.Log($"Zoom: {p}");
     }
     
 }
