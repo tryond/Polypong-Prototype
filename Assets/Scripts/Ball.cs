@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Xml.Schema;
 using JetBrains.Annotations;
+using Shapes;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
@@ -69,24 +70,21 @@ public class Ball : MonoBehaviour
         // TrackTarget();
         
         rb.MovePosition(transform.position + (Time.fixedDeltaTime * (Vector3) velocity));
+        
+        Debug.DrawLine(transform.position, velocity + (Vector2) transform.position, Color.cyan, Time.fixedDeltaTime);
     }
+    
 
 
     private void SetTargetSide(Vector2 direction)
     {
-        Debug.Log("Setting target side!");
-        
-        Debug.DrawLine(transform.position, 100f * direction, Color.blue, 3);
-        
         var hits = Physics2D.RaycastAll(transform.position, direction, 100f);
         var sideHit = hits.FirstOrDefault(hit => hit.collider.CompareTag("Side"));
         if (!sideHit)
         {
-            Debug.Log("NO HITS!");
+            // Debug.Log("NO HITS!");
             return;
         }
-        
-        
         
         targetSide = sideHit.transform.gameObject.GetComponent<Side>();
         // targetLocalPos = targetSide.transform.InverseTransformPoint(sideHit.point);
@@ -96,7 +94,7 @@ public class Ball : MonoBehaviour
         // timeToTarget = distanceToTarget / speed;
         
         targetSide.AddIncomingBall(this);
-        velocity = speed * direction;
+        SetVelocity(speed * direction);
     }
 
     private bool ApplyCollisions()
@@ -112,14 +110,14 @@ public class Ball : MonoBehaviour
         
         if (collidingPost)
         {
-            Debug.Log("Applying POST");
+            // Debug.Log("Applying POST");
             outgoing += collidingPost.GetReflection(lastCollisionPoint, velocity);
             collidingPost = null;
         }
 
         if (collidingPaddle)
         {
-            Debug.Log("Applying PADDLE");
+            // Debug.Log("Applying PADDLE");
             outgoing += collidingPaddle.GetReflection(lastCollisionPoint, velocity);
             collidingPaddle.PaddleHit(this);
             collidingPaddle = null;
@@ -127,7 +125,7 @@ public class Ball : MonoBehaviour
 
         if (collidingSide)
         {
-            Debug.Log("Applying SIDE");
+            // Debug.Log("Applying SIDE");
             outgoing += collidingSide.GetReflection(lastCollisionPoint, velocity);
             collidingSide.SideHit(this);
             collidingSide = null;
@@ -176,7 +174,7 @@ public class Ball : MonoBehaviour
                 break;
         }
         
-        Debug.Log($"adding {other.gameObject.tag}");
+        // Debug.Log($"adding {other.gameObject.tag}");
     }
 
     public void SetVelocity(Vector2 velocity)
