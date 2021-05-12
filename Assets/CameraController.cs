@@ -8,6 +8,8 @@ using Vector3 = UnityEngine.Vector3;
 public class CameraController : MonoBehaviour
 {
     [SerializeField] private Camera cam;
+    [SerializeField] private Camera arenaCam;
+    
     [SerializeField] [CanBeNull] private Side playerSide;
     [SerializeField] private Arena arena;
     
@@ -39,6 +41,8 @@ public class CameraController : MonoBehaviour
     private Dictionary<Ball, GameObject> ballToOffscreenIndicator;
 
     private bool zoomedOut = true;
+
+    private float p;
     
     void Start()
     {
@@ -292,14 +296,18 @@ public class CameraController : MonoBehaviour
         //     targetPosition = inPosition;
         // }
         
-        if (Vector3.Distance(cam.transform.position, targetPosition) < 0.01f)
-            return;
+        // if (Vector3.Distance(cam.transform.position, targetPosition) < 0.01f)
+        //     return;
+        
+        targetOrtho = Mathf.Lerp(inOrtho, outOrtho, p);
+        targetPosition = Vector3.Lerp(inPosition, outPosition, p);
         
         // Move camera towards position
         cam.transform.position = Vector3.SmoothDamp(cam.transform.position, targetPosition, ref positionVelocity, smoothTime, speed);
         cam.orthographicSize = Mathf.SmoothDamp(cam.orthographicSize, targetOrtho, ref orthoVelocity, smoothTime, speed);
         
         cam.transform.up = playerSide ? playerSide.transform.up : arena.transform.up;
+        arenaCam.transform.up = cam.transform.up;
         
         PlaceOffscreenIndicators();
         DrawBounds();
@@ -327,9 +335,10 @@ public class CameraController : MonoBehaviour
     {
         ortho = (arena.Radius / cam.aspect) + (sideBuffer * 2f);
 
-        var direction = playerSide ? playerSide.transform.up : arena.transform.up;
+        // var direction = playerSide ? playerSide.transform.up : arena.transform.up;
 
-        position = arena.transform.position - (ortho - arena.Radius - topBuffer) * direction;
+        // position = arena.transform.position - (ortho - arena.Radius - topBuffer) * direction;
+        position = arena.transform.position;
         position = new Vector3(position.x, position.y, -10f);
 
         topViewportPos = new Vector2(0f, 1f - ((2f * arena.Radius + topBuffer) / (2f * ortho)));
@@ -364,6 +373,15 @@ public class CameraController : MonoBehaviour
         targetPosition = Vector3.Lerp(inPosition, outPosition, p);
         
         Debug.Log($"Zoom: {p}");
+    }
+
+    public void Zoom(Vector3 fromWorldPoint, Vector3 toWorldPoint)
+    {
+        var fromViewportPoint = cam.WorldToViewportPoint(fromWorldPoint);
+        var toViewportPoint = cam.WorldToViewportPoint(toWorldPoint);
+        
+        // 0.50 viewport -> 0.25 zoom
+        p -= (fromViewportPoint.y - toViewportPoint.y);
     }
     
 }
